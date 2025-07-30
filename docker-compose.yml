@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  benchmark:
+    build: .
+    container_name: tpu-v5-benchmark
+    volumes:
+      - ./models:/app/models:ro
+      - ./results:/app/results
+      - /dev/apex_0:/dev/apex_0
+    devices:
+      - /dev/apex_0:/dev/apex_0
+    privileged: true
+    environment:
+      - PYTHONPATH=/app/src
+      - TPU_DEVICE=/dev/apex_0
+    command: ["edge-tpu-v5-benchmark", "detect"]
+
+  benchmark-dev:
+    build: .
+    container_name: tpu-v5-benchmark-dev
+    volumes:
+      - .:/app
+      - ./models:/app/models:ro
+      - ./results:/app/results
+      - /dev/apex_0:/dev/apex_0
+    devices:
+      - /dev/apex_0:/dev/apex_0
+    privileged: true
+    environment:
+      - PYTHONPATH=/app/src
+      - TPU_DEVICE=/dev/apex_0
+      - DEVELOPMENT=1
+    command: ["bash"]
+    stdin_open: true
+    tty: true
+
+  test:
+    build: .
+    container_name: tpu-v5-test
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONPATH=/app/src
+    command: ["pytest", "tests/", "-v"]
+
+  docs:
+    build: .
+    container_name: tpu-v5-docs
+    volumes:
+      - .:/app
+      - ./docs/_build:/app/docs/_build
+    working_dir: /app/docs
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "http.server", "8000", "--directory", "_build/html"]
