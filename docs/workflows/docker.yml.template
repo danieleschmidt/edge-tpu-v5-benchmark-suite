@@ -1,0 +1,262 @@
+# Docker Build and Push Workflow for Edge TPU v5 Benchmark Suite
+# Save as: .github/workflows/docker.yml
+
+name: Docker
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'src/**'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'src/**'
+      - 'pyproject.toml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: danielschmidt/edge-tpu-v5-benchmark
+
+jobs:
+  build-test:
+    name: Build and Test Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=test
+            
+      - name: Build Docker image for testing
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Test Docker image - Basic functionality
+        run: |
+          # Test that the image runs and CLI is available
+          docker run --rm ${{ env.IMAGE_NAME }}:test edge-tpu-v5-benchmark --version
+          docker run --rm ${{ env.IMAGE_NAME }}:test edge-tpu-v5-benchmark --help
+          
+      - name: Test Docker image - Python environment
+        run: |
+          # Test that Python packages are properly installed
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -c "import edge_tpu_v5_benchmark; print('Package import successful')"
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -c "import numpy, onnx, click; print('Dependencies available')"
+          
+      - name: Test Docker image - Development tools
+        run: |
+          # Test development tools in dev variant
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -m pytest --version
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -m black --version
+          docker run --rm ${{ env.IMAGE_NAME }}:test python -m ruff --version
+          
+      - name: Run security scan on image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          
+      - name: Upload security scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  build-multi-arch:
+    name: Build Multi-Architecture Images
+    runs-on: ubuntu-latest
+    needs: build-test
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc') }}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix={{branch}}-
+            
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Generate SBOM for Docker image
+        if: github.event_name == 'release'
+        run: |
+          # Install syft for SBOM generation
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          
+          # Generate SBOM for the released image
+          syft ${{ env.IMAGE_NAME }}:latest -o spdx-json=sbom-docker.json
+          syft ${{ env.IMAGE_NAME }}:latest -o cyclonedx-json=sbom-docker-cyclone.json
+          
+      - name: Upload Docker SBOM
+        if: github.event_name == 'release'
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-sbom
+          path: |
+            sbom-docker*.json
+
+  docker-compose-test:
+    name: Test Docker Compose
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test docker-compose build
+        run: |
+          docker-compose build
+          
+      - name: Test docker-compose services
+        run: |
+          # Test that services can be built and basic commands work
+          docker-compose run --rm test echo "Test service works"
+          
+          # Test development environment
+          docker-compose run --rm benchmark-dev echo "Development service works"
+          
+      - name: Test docker-compose teardown
+        run: |
+          docker-compose down --volumes --remove-orphans
+
+  vulnerability-scan:
+    name: Vulnerability Scanning
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:test
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          
+      - name: Run Trivy config scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-config-results.sarif'
+          
+      - name: Upload config scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-config-results.sarif'
+
+  image-analysis:
+    name: Image Analysis and Optimization
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Analyze image with dive
+        run: |
+          # Install dive for image analysis
+          wget -q https://github.com/wagoodman/dive/releases/download/v0.11.0/dive_0.11.0_linux_amd64.deb
+          sudo dpkg -i dive_0.11.0_linux_amd64.deb
+          
+          # Analyze image efficiency
+          CI=true dive ${{ env.IMAGE_NAME }}:test
+          
+      - name: Generate image analysis report
+        run: |
+          docker images ${{ env.IMAGE_NAME }}:test --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}"
+          
+          # Get detailed image information
+          docker inspect ${{ env.IMAGE_NAME }}:test > image-inspect.json
+          
+          # Extract key metrics
+          echo "=== Image Analysis Report ===" > image-report.txt
+          echo "Size: $(docker images ${{ env.IMAGE_NAME }}:test --format '{{.Size}}')" >> image-report.txt
+          echo "Layers: $(docker history ${{ env.IMAGE_NAME }}:test --no-trunc | wc -l)" >> image-report.txt
+          echo "Architecture: $(docker inspect ${{ env.IMAGE_NAME }}:test | jq -r '.[0].Architecture')" >> image-report.txt
+          
+      - name: Upload image analysis
+        uses: actions/upload-artifact@v3
+        with:
+          name: image-analysis
+          path: |
+            image-inspect.json
+            image-report.txt
+
+  cleanup:
+    name: Cleanup Old Images
+    runs-on: ubuntu-latest
+    needs: [build-multi-arch]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Delete old container images
+        uses: snok/container-retention-policy@v2
+        with:
+          image-names: edge-tpu-v5-benchmark
+          cut-off: 7 days ago UTC
+          account-type: personal
+          org-name: danielschmidt
+          keep-at-least: 5
+          untagged-only: true
+          token: ${{ secrets.GITHUB_TOKEN }}

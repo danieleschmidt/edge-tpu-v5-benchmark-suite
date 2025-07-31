@@ -1,0 +1,295 @@
+# Release Automation Workflow for Edge TPU v5 Benchmark Suite
+# Save as: .github/workflows/release.yml
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Is this a pre-release?'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write  # For trusted publishing
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=${{ github.event.inputs.prerelease }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            if [[ $VERSION == *"alpha"* ]] || [[ $VERSION == *"beta"* ]] || [[ $VERSION == *"rc"* ]]; then
+              echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=${{ github.event.release.prerelease }}" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Validate version format
+        run: |
+          if ! echo "${{ steps.version.outputs.version }}" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(\-(alpha|beta|rc)\.[0-9]+)?$'; then
+            echo "Invalid version format: ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+  build-and-test:
+    name: Build and Test Release
+    runs-on: ubuntu-latest
+    needs: validate-release
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+          pip install -e ".[dev,test]"
+          
+      - name: Update version in pyproject.toml
+        run: |
+          sed -i 's/version = ".*"/version = "${{ needs.validate-release.outputs.version }}"/' pyproject.toml
+          
+      - name: Run full test suite
+        run: |
+          pytest tests/ -v --cov=src --cov-report=xml -m "not hardware"
+          
+      - name: Build package
+        run: |
+          python -m build
+          
+      - name: Check package
+        run: |
+          twine check dist/*
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-${{ needs.validate-release.outputs.version }}
+          path: dist/
+
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cyclonedx-bom
+          pip install -e .
+          
+      - name: Generate SBOM
+        run: |
+          cyclonedx-py --format json --output sbom-${{ needs.validate-release.outputs.version }}.json
+          cyclonedx-py --format xml --output sbom-${{ needs.validate-release.outputs.version }}.xml
+          
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom-${{ needs.validate-release.outputs.version }}
+          path: |
+            sbom-*.json
+            sbom-*.xml
+
+  build-docker:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: danielschmidt/edge-tpu-v5-benchmark
+          tags: |
+            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !needs.validate-release.outputs.is_prerelease }}
+            type=raw,value=latest,enable=${{ !needs.validate-release.outputs.is_prerelease }}
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test, generate-sbom, build-docker]
+    if: github.event_name != 'release'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-${{ needs.validate-release.outputs.version }}
+          path: dist/
+          
+      - name: Download SBOM
+        uses: actions/download-artifact@v3
+        with:
+          name: sbom-${{ needs.validate-release.outputs.version }}
+          path: sbom/
+          
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Extract changelog section for this version
+          if grep -q "## \[${{ needs.validate-release.outputs.version }}\]" CHANGELOG.md; then
+            awk '/## \[${{ needs.validate-release.outputs.version }}\]/,/## \[/ {
+              if (/## \[/ && !/## \[${{ needs.validate-release.outputs.version }}\]/) exit;
+              if (!/## \[${{ needs.validate-release.outputs.version }}\]/) print
+            }' CHANGELOG.md > release_notes.md
+          else
+            echo "Release notes for version ${{ needs.validate-release.outputs.version }} not found in CHANGELOG.md" > release_notes.md
+          fi
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          name: Release v${{ needs.validate-release.outputs.version }}
+          body_path: release_notes.md
+          prerelease: ${{ needs.validate-release.outputs.is_prerelease }}
+          files: |
+            dist/*
+            sbom/*
+          generate_release_notes: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test, create-release]
+    if: needs.validate-release.outputs.is_prerelease == 'false'
+    environment: 
+      name: pypi
+      url: https://pypi.org/p/edge-tpu-v5-benchmark
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-${{ needs.validate-release.outputs.version }}
+          path: dist/
+          
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
+  publish-test-pypi:
+    name: Publish to Test PyPI
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-and-test]
+    if: needs.validate-release.outputs.is_prerelease == 'true'
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/edge-tpu-v5-benchmark
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-${{ needs.validate-release.outputs.version }}
+          path: dist/
+          
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+
+  post-release:
+    name: Post-Release Tasks
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, publish-pypi]
+    if: always() && (needs.publish-pypi.result == 'success' || needs.publish-pypi.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Update development version
+        if: needs.validate-release.outputs.is_prerelease == 'false'
+        run: |
+          # Increment patch version for development
+          CURRENT_VERSION=${{ needs.validate-release.outputs.version }}
+          IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+          MAJOR=${VERSION_PARTS[0]}
+          MINOR=${VERSION_PARTS[1]}
+          PATCH=$((${VERSION_PARTS[2]} + 1))
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-dev"
+          
+          sed -i "s/version = \".*\"/version = \"$NEW_VERSION\"/" pyproject.toml
+          
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add pyproject.toml
+          git commit -m "Bump version to $NEW_VERSION for development"
+          git push
+          
+      - name: Create next milestone
+        run: |
+          # Logic to create next milestone would go here
+          echo "Creating next milestone for future release planning"

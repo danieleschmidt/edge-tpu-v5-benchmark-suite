@@ -1,0 +1,40 @@
+# CODEOWNERS file for Edge TPU v5 Benchmark Suite
+# Save as: .github/CODEOWNERS
+
+# Global ownership - all files require review from project maintainer
+* @danielschmidt
+
+# Core source code
+/src/ @danielschmidt
+
+# Configuration files require careful review
+/pyproject.toml @danielschmidt
+/Makefile @danielschmidt
+/.pre-commit-config.yaml @danielschmidt
+/docker-compose.yml @danielschmidt
+/Dockerfile @danielschmidt
+
+# Security and compliance files
+/SECURITY.md @danielschmidt
+/docs/security/ @danielschmidt
+/.github/workflows/security.yml @danielschmidt
+
+# CI/CD workflows require careful review
+/.github/workflows/ @danielschmidt
+/.github/dependabot.yml @danielschmidt
+
+# Documentation - can be reviewed by technical writers or maintainers
+/README.md @danielschmidt
+/docs/ @danielschmidt
+/CONTRIBUTING.md @danielschmidt
+/CODE_OF_CONDUCT.md @danielschmidt
+
+# Tests - should be reviewed by someone familiar with the testing strategy
+/tests/ @danielschmidt
+
+# Examples - ensure they stay up-to-date with API changes
+/examples/ @danielschmidt
+
+# Release and packaging
+/CHANGELOG.md @danielschmidt
+/LICENSE @danielschmidt
