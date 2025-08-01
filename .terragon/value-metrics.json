@@ -1,0 +1,36 @@
+{
+  "repositoryMaturity": {
+    "before": 65,
+    "current": 68,
+    "target": 85
+  },
+  "executionHistory": [],
+  "backlogMetrics": {
+    "totalItems": 0,
+    "averageAge": 0,
+    "debtRatio": 0.25,
+    "velocityTrend": "stable"
+  },
+  "continuousValueMetrics": {
+    "totalItemsDiscovered": 0,
+    "totalItemsCompleted": 0,
+    "averageCycleTimeHours": 0,
+    "valueDeliveredScore": 0,
+    "technicalDebtReduction": 0,
+    "securityImprovements": 0,
+    "performanceGainsPercent": 0,
+    "codeQualityImprovement": 0
+  },
+  "learningMetrics": {
+    "estimationAccuracy": 0.0,
+    "valuePredictionAccuracy": 0.0,
+    "falsePositiveRate": 0.0,
+    "adaptationCycles": 0
+  },
+  "operationalMetrics": {
+    "autonomousPrSuccessRate": 0.0,
+    "humanInterventionRequired": 0.0,
+    "rollbackRate": 0.0,
+    "meanTimeToValue": 0.0
+  }
+}
