@@ -1,0 +1,23 @@
+# Global code owners
+* @danieleschmidt
+
+# Core benchmark implementation
+/src/edge_tpu_v5_benchmark/ @danieleschmidt
+
+# Documentation
+/docs/ @danieleschmidt
+*.md @danieleschmidt
+
+# Build and CI/CD
+/pyproject.toml @danieleschmidt
+/Makefile @danieleschmidt
+/.github/ @danieleschmidt
+/Dockerfile @danieleschmidt
+/docker-compose.yml @danieleschmidt
+
+# Security and compliance
+/SECURITY.md @danieleschmidt
+/.pre-commit-config.yaml @danieleschmidt
+
+# Tests
+/tests/ @danieleschmidt
