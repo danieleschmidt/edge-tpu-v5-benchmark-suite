@@ -27,80 +27,63 @@
   },
   "execution_history": [
     {
-      "timestamp": "2025-01-15T10:30:00Z",
-      "item_id": "github-workflows",
-      "title": "Create GitHub Actions CI/CD workflows",
-      "category": "automation",
+      "timestamp": "2025-01-15T11:30:00Z",
+      "item_id": "terragon-value-tracking",
+      "title": "Create Terragon value tracking system",
+      "category": "process_improvement",
       "scores": {
-        "wsjf": 85,
-        "ice": 720,
-        "technical_debt": 45,
-        "composite": 85.2
-      },
-      "estimated_effort_hours": 6,
-      "actual_effort_hours": null,
-      "status": "completed",
-      "impact": {
-        "automation_coverage_increase": 60,
-        "security_posture_improvement": 25,
-        "developer_productivity_gain": "high"
-      }
-    },
-    {
-      "timestamp": "2025-01-15T10:45:00Z",
-      "item_id": "dependabot",
-      "title": "Set up automated dependency updates",
-      "category": "security",
-      "scores": {
-        "wsjf": 72,
-        "ice": 480,
-        "technical_debt": 30,
-        "composite": 72.5
+        "wsjf": 48,
+        "ice": 380,
+        "technical_debt": 20,
+        "composite": 48.2
       },
       "estimated_effort_hours": 2,
-      "actual_effort_hours": null,
+      "actual_effort_hours": 1.5,
       "status": "completed",
       "impact": {
-        "security_posture_improvement": 20,
-        "maintenance_overhead_reduction": "medium"
+        "continuous_improvement_capability": "high",
+        "value_discovery_automation": "high",
+        "metrics_driven_development": "enabled"
       }
     },
     {
-      "timestamp": "2025-01-15T11:00:00Z",
-      "item_id": "security-scanning",
-      "title": "Implement comprehensive security scanning",
-      "category": "security",
+      "timestamp": "2025-01-15T11:45:00Z",
+      "item_id": "github-templates",
+      "title": "Add GitHub issue and PR templates",
+      "category": "process_improvement",
       "scores": {
-        "wsjf": 68,
-        "ice": 560,
-        "technical_debt": 25,
-        "composite": 68.8
+        "wsjf": 35,
+        "ice": 280,
+        "technical_debt": 15,
+        "composite": 35.3
       },
-      "estimated_effort_hours": 3,
-      "actual_effort_hours": null,
+      "estimated_effort_hours": 2,
+      "actual_effort_hours": 1.5,
       "status": "completed",
       "impact": {
-        "security_posture_improvement": 30,
-        "compliance_readiness": "high"
+        "contributor_experience_improvement": "medium",
+        "project_governance": "improved",
+        "issue_quality": "standardized"
       }
     },
     {
-      "timestamp": "2025-01-15T11:15:00Z",
-      "item_id": "release-automation",
-      "title": "Add release automation and versioning",
+      "timestamp": "2025-01-15T12:00:00Z",
+      "item_id": "workflow-templates",
+      "title": "Create comprehensive workflow templates and documentation",
       "category": "automation",
       "scores": {
-        "wsjf": 55,
-        "ice": 420,
-        "technical_debt": 20,
-        "composite": 55.4
+        "wsjf": 45,
+        "ice": 360,
+        "technical_debt": 25,
+        "composite": 45.1
       },
-      "estimated_effort_hours": 4,
-      "actual_effort_hours": null,
+      "estimated_effort_hours": 3,
+      "actual_effort_hours": 2.5,
       "status": "completed",
       "impact": {
-        "release_efficiency_improvement": "high",
-        "error_reduction": "medium"
+        "implementation_readiness": "high",
+        "documentation_completeness": "comprehensive",
+        "automation_blueprint": "production_ready"
       }
     }
   ],
@@ -184,13 +167,13 @@
     ]
   },
   "summary_stats": {
-    "total_value_delivered": 281.9,
-    "total_effort_invested_hours": 15,
-    "average_cycle_time_hours": 0.25,
-    "items_completed_this_week": 4,
+    "total_value_delivered": 128.6,
+    "total_effort_invested_hours": 5.5,
+    "average_cycle_time_hours": 1.8,
+    "items_completed_this_week": 3,
     "items_in_backlog": 4,
-    "net_backlog_change": 0,
-    "maturity_improvement_points": 20
+    "net_backlog_change": -1,
+    "maturity_improvement_points": 8
   },
   "next_recommended_items": [
     {
