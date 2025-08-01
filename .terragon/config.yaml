@@ -1,0 +1,159 @@
+# Terragon Autonomous SDLC Configuration
+version: "1.0"
+project:
+  name: "edge-tpu-v5-benchmark-suite"
+  type: "python-package"
+  maturity_level: "maturing"  # nascent, developing, maturing, advanced
+  primary_language: "python"
+  framework: "benchmark-suite"
+
+# Value Discovery Configuration
+value_discovery:
+  enabled: true
+  schedule:
+    immediate_post_merge: true
+    hourly_security_scan: true
+    daily_comprehensive: true
+    weekly_deep_analysis: true
+    monthly_strategic_review: true
+  
+  scoring:
+    weights:
+      wsjf: 0.6      # Weighted Shortest Job First
+      ice: 0.2       # Impact, Confidence, Ease
+      technical_debt: 0.15
+      security: 0.05
+    
+    thresholds:
+      min_composite_score: 15
+      max_risk_tolerance: 0.8
+      security_boost_multiplier: 2.0
+      compliance_boost_multiplier: 1.8
+    
+    categories:
+      security_fix: { weight_multiplier: 2.0, priority: "critical" }
+      dependency_update: { weight_multiplier: 1.2, priority: "high" }
+      technical_debt: { weight_multiplier: 1.5, priority: "medium" }
+      feature_enhancement: { weight_multiplier: 1.0, priority: "low" }
+      documentation: { weight_multiplier: 0.7, priority: "low" }
+
+# Signal Sources
+signal_sources:
+  git_history:
+    enabled: true
+    keywords: ["TODO", "FIXME", "HACK", "DEPRECATED", "BUG"]
+    commit_message_patterns: ["quick fix", "temporary", "workaround"]
+  
+  static_analysis:
+    enabled: true
+    tools:
+      - name: "ruff"
+        weight: 0.8
+      - name: "mypy"
+        weight: 0.7
+      - name: "bandit"
+        weight: 0.9
+  
+  security_scanning:
+    enabled: true
+    tools:
+      - name: "trivy"
+        weight: 0.9
+      - name: "safety"
+        weight: 0.8
+      - name: "pip-audit"
+        weight: 0.8
+  
+  dependency_analysis:
+    enabled: true
+    check_outdated: true
+    security_advisories: true
+    license_compliance: true
+
+# Execution Configuration
+execution:
+  max_concurrent_tasks: 1
+  auto_create_branches: true
+  auto_create_prs: true
+  require_tests_pass: true
+  require_security_checks: true
+  
+  quality_gates:
+    min_test_coverage: 80
+    max_performance_regression: 5  # percent
+    security_scan_required: true
+    
+  rollback_triggers:
+    - "test_failure"
+    - "build_failure"
+    - "security_violation"
+    - "performance_regression"
+
+# Learning and Adaptation
+learning:
+  track_prediction_accuracy: true
+  adjust_scoring_weights: true
+  store_execution_history: true
+  continuous_model_improvement: true
+  
+  feedback_loops:
+    execution_outcome_tracking: true
+    effort_estimation_calibration: true
+    value_realization_measurement: true
+    pattern_recognition: true
+
+# Repository-Specific Configuration
+repository_config:
+  package_manager: "uv"
+  test_framework: "pytest"
+  linter: "ruff"
+  formatter: "black"
+  type_checker: "mypy"
+  security_scanner: "bandit"
+  
+  build_commands:
+    install: "uv sync --all-extras --dev"
+    test: "uv run pytest tests/ -v --cov=src"
+    lint: "uv run ruff check src/ tests/"
+    format: "uv run black src/ tests/"
+    type_check: "uv run mypy src/"
+    security_check: "uv run bandit -r src/"
+    build: "uv build"
+  
+  ci_cd:
+    platform: "github_actions"
+    workflows_path: ".github/workflows"
+    auto_deploy: false
+    environments: ["dev", "staging", "prod"]
+
+# Value Metrics Tracking
+metrics:
+  track_value_delivered: true
+  track_cycle_time: true
+  track_lead_time: true
+  track_deployment_frequency: true
+  track_mttr: true  # Mean Time To Recovery
+  track_change_failure_rate: true
+  
+  business_metrics:
+    track_user_satisfaction: false  # No users yet for benchmark suite
+    track_revenue_impact: false
+    track_cost_savings: true
+    track_efficiency_gains: true
+
+# Notification and Reporting
+notifications:
+  enabled: true
+  channels:
+    - type: "github_issues"
+      enabled: true
+      threshold: "high_value"
+    - type: "pull_requests"
+      enabled: true
+      auto_assign: true
+  
+  reporting:
+    daily_summary: true
+    weekly_deep_dive: true
+    monthly_strategic_review: true
+    value_dashboard: true
