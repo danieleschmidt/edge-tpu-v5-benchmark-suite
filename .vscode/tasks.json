@@ -1,0 +1,344 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install Dependencies",
+      "type": "shell",
+      "command": "pip",
+      "args": ["install", "-e", ".[dev,test,docs]"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run All Tests",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "pytest", "tests/", "-v", "--tb=short"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      },
+      "problemMatcher": [
+        {
+          "owner": "python",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^(.*):(\\d+): (.*)$",
+              "file": 1,
+              "line": 2,
+              "message": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Run Unit Tests",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "pytest", "tests/unit/", "-v"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Run Integration Tests",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "pytest", "tests/integration/", "-v"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Test Coverage",
+      "type": "shell",
+      "command": "python",
+      "args": [
+        "-m", "pytest",
+        "--cov=edge_tpu_v5_benchmark",
+        "--cov-report=html",
+        "--cov-report=term",
+        "tests/"
+      ],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Lint Code",
+      "type": "shell",
+      "command": "ruff",
+      "args": ["check", "src/", "tests/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "ruff",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^(.+):(\\d+):(\\d+): (.+)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "message": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Format Code",
+      "type": "shell",
+      "command": "black",
+      "args": ["src/", "tests/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Type Check",
+      "type": "shell",
+      "command": "mypy",
+      "args": ["src/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "mypy",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^(.+):(\\d+): (.+): (.+)$",
+              "file": 1,
+              "line": 2,
+              "severity": 3,
+              "message": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "Run Benchmark CLI",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "edge_tpu_v5_benchmark.cli", "--help"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Build Package",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "build"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Build Docker Image",
+      "type": "shell",
+      "command": "docker",
+      "args": [
+        "build",
+        "-t", "edge-tpu-v5-benchmark:latest",
+        "."
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Clean Cache",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-c",
+        "find . -type f -name '*.pyc' -delete && find . -type d -name '__pycache__' -delete && rm -rf .pytest_cache .mypy_cache htmlcov *.egg-info build dist"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Pre-commit All Files",
+      "type": "shell",
+      "command": "pre-commit",
+      "args": ["run", "--all-files"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "label": "Setup Development Environment",
+      "type": "shell",
+      "command": "bash",
+      "args": [".devcontainer/post-create.sh"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "dependsOrder": "sequence",
+      "dependsOn": ["Install Dependencies"]
+    },
+    {
+      "label": "Start Jupyter Lab",
+      "type": "shell",
+      "command": "jupyter",
+      "args": [
+        "lab",
+        "--ip=0.0.0.0",
+        "--port=8888",
+        "--no-browser",
+        "--allow-root"
+      ],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Documentation",
+      "type": "shell",
+      "command": "sphinx-build",
+      "args": ["-b", "html", "docs/", "docs/_build/html/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    }
+  ]
+}

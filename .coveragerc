@@ -1,0 +1,54 @@
+[run]
+source = src/edge_tpu_v5_benchmark
+branch = True
+parallel = True
+omit = 
+    */tests/*
+    */test_*
+    */venv/*
+    */.venv/*
+    */build/*
+    */dist/*
+    */__pycache__/*
+    */migrations/*
+    */conftest.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+    # Type checking imports
+    if TYPE_CHECKING:
+    # Debug-only code
+    if DEBUG:
+    # Platform-specific code
+    if sys.platform
+    # Defensive assertions
+    assert False
+    # Unreachable code after sys.exit
+    sys.exit
+
+ignore_errors = True
+show_missing = True
+precision = 2
+skip_covered = False
+
+[html]
+directory = htmlcov
+title = Edge TPU v5 Benchmark Suite Coverage Report
+
+[xml]
+output = coverage.xml
+
+[json]
+output = coverage.json
+pretty_print = True

@@ -1,0 +1,164 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Benchmark CLI",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/edge_tpu_v5_benchmark/cli.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "args": ["--help"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Run Benchmark Suite",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/edge_tpu_v5_benchmark/cli.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "run",
+        "--model", "mobilenet_v3",
+        "--iterations", "10",
+        "--mock-hardware"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true",
+        "MOCK_TPU_HARDWARE": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "tests/",
+        "-v",
+        "--tb=short"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Specific Test",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "args": [
+        "${file}",
+        "-v",
+        "-s"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Benchmark Engine",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/edge_tpu_v5_benchmark/benchmark.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true",
+        "MOCK_TPU_HARDWARE": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Power Monitoring",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/edge_tpu_v5_benchmark/power.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true",
+        "MOCK_TPU_HARDWARE": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Debug Model Loading",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/edge_tpu_v5_benchmark/models.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src",
+        "DEBUG": "true"
+      },
+      "justMyCode": false
+    },
+    {
+      "name": "Python: Remote Attach",
+      "type": "python",
+      "request": "attach",
+      "port": 5678,
+      "host": "localhost",
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/workspaces/edge-tpu-v5-benchmark-suite"
+        }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "Attach to Docker Container",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ],
+      "justMyCode": false
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch Tests and Debug",
+      "configurations": ["Debug Tests", "Python: Current File"]
+    }
+  ]
+}
