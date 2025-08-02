@@ -1,0 +1,305 @@
+# =============================================================================
+# Docker ignore file for Edge TPU v5 Benchmark Suite
+# Optimizes build context by excluding unnecessary files
+# =============================================================================
+
+# Version control
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# Documentation
+docs/_build/
+*.md
+!README.md
+!LICENSE
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+bandit-report.json
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Profiling
+.prof
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env.local
+.env.*.local
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Logs
+*.log
+logs/
+*.out
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js
+.next
+
+# nuxt.js
+.nuxt
+
+# Gatsby files
+.cache/
+public
+
+# vue-js
+dist/
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Model files (can be large)
+models/
+*.onnx
+*.tflite
+*.pb
+*.h5
+*.pkl
+*.bin
+
+# Result files
+results/
+*.csv
+*.json
+output/
+
+# Cache directories
+cache/
+.cache/
+
+# Monitoring data
+monitoring/data/
+prometheus-data/
+grafana-data/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development tools
+.devcontainer/
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Security sensitive files
+*.pem
+*.key
+*.crt
+secrets/
+.secrets
+
+# Large binary files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Package managers
+package-lock.json
+yarn.lock
+Pipfile.lock
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes
+*.kubeconfig
+
+# Helm
+charts/*/charts/
+charts/*/Chart.lock
+
+# Local development overrides
+docker-compose.override.yml
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary build artifacts
+.build/
+build_output/
+dist_output/
+
+# Pre-commit
+.pre-commit-config.yaml
+
+# SBOM files
+*.spdx
+*.spdx.json
+sbom.json
+
+# Security scan results
+*.sarif
+security-report.json
+vulnerability-report.json
+
+# Performance data
+*.prof
+*.pprof
+perf.data*
+
+# Core dumps
+core.*
+
+# Editor backups
+*.orig
+*.rej
