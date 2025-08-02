@@ -1,56 +1,323 @@
-version: '3.8'
+version: '3.9'
+
+# =============================================================================
+# Docker Compose configuration for Edge TPU v5 Benchmark Suite
+# Supports development, testing, production, and monitoring workflows
+# =============================================================================
+
+# Shared configuration
+x-common-variables: &common-variables
+  PYTHONPATH: /app/src
+  EDGE_TPU_CACHE_DIR: /app/cache
+  BENCHMARK_OUTPUT_DIR: /app/results
+  MODEL_CACHE_DIR: /app/models
+
+x-tpu-devices: &tpu-devices
+  devices:
+    # Primary TPU device - adjust based on your setup
+    - /dev/apex_0:/dev/apex_0
+    # Additional TPU devices (uncomment as needed)
+    # - /dev/apex_1:/dev/apex_1
+    # - /dev/apex_2:/dev/apex_2
+
+x-common-volumes: &common-volumes
+  - ./models:/app/models:ro
+  - ./results:/app/results
+  - ./cache:/app/cache
+  - ./logs:/app/logs
+
+networks:
+  benchmark-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  models-cache:
+    driver: local
+  results-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
 
 services:
+  # ==========================================================================
+  # Production Benchmark Service
+  # ==========================================================================
   benchmark:
-    build: .
+    build:
+      context: .
+      target: runtime
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: edge-tpu-v5-benchmark:latest
     container_name: tpu-v5-benchmark
+    restart: unless-stopped
+    networks:
+      - benchmark-network
     volumes:
-      - ./models:/app/models:ro
-      - ./results:/app/results
-      - /dev/apex_0:/dev/apex_0
-    devices:
-      - /dev/apex_0:/dev/apex_0
-    privileged: true
+      *common-volumes
+    <<: *tpu-devices
     environment:
-      - PYTHONPATH=/app/src
-      - TPU_DEVICE=/dev/apex_0
+      <<: *common-variables
+      EDGE_TPU_DEVICE_PATH: /dev/apex_0
+      BENCHMARK_DEFAULT_ITERATIONS: 1000
+      POWER_MEASUREMENT_ENABLED: "true"
+      TELEMETRY_ENABLED: "false"
     command: ["edge-tpu-v5-benchmark", "detect"]
+    healthcheck:
+      test: ["CMD", "edge-tpu-v5-benchmark", "detect", "--quiet"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "com.edge-tpu-benchmark.service=production"
+      - "com.edge-tpu-benchmark.version=0.1.0"
 
+  # ==========================================================================
+  # Development Environment
+  # ==========================================================================
   benchmark-dev:
-    build: .
+    build:
+      context: .
+      target: development
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: edge-tpu-v5-benchmark:dev
     container_name: tpu-v5-benchmark-dev
+    networks:
+      - benchmark-network
     volumes:
+      # Mount entire source for live development
       - .:/app
-      - ./models:/app/models:ro
-      - ./results:/app/results
-      - /dev/apex_0:/dev/apex_0
-    devices:
-      - /dev/apex_0:/dev/apex_0
-    privileged: true
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      *common-volumes
+    <<: *tpu-devices
     environment:
-      - PYTHONPATH=/app/src
-      - TPU_DEVICE=/dev/apex_0
-      - DEVELOPMENT=1
+      <<: *common-variables
+      EDGE_TPU_DEV_MODE: "1"
+      EDGE_TPU_LOG_LEVEL: DEBUG
+      EDGE_TPU_DEVICE_PATH: /dev/apex_0
+      BENCHMARK_DEFAULT_ITERATIONS: 10
+      DEVELOPMENT: "1"
     command: ["bash"]
     stdin_open: true
     tty: true
+    ports:
+      - "8000:8000"  # Web interface
+      - "8888:8888"  # Jupyter
+      - "5678:5678"  # Debugger
+    labels:
+      - "com.edge-tpu-benchmark.service=development"
 
+  # ==========================================================================
+  # Testing Service
+  # ==========================================================================
   test:
-    build: .
+    build:
+      context: .
+      target: testing
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: edge-tpu-v5-benchmark:test
     container_name: tpu-v5-test
+    networks:
+      - benchmark-network
     volumes:
       - .:/app
+      - ./test-results:/app/test-results
+      - ./coverage:/app/coverage
     environment:
-      - PYTHONPATH=/app/src
-    command: ["pytest", "tests/", "-v"]
+      <<: *common-variables
+      PYTEST_CURRENT_TEST: ""
+      COVERAGE_PROCESS_START: .coveragerc
+      RUN_SLOW_TESTS: "false"
+      RUN_HARDWARE_TESTS: "false"
+    command: [
+      "pytest", 
+      "tests/", 
+      "-v", 
+      "--cov=src", 
+      "--cov-report=html:/app/coverage", 
+      "--cov-report=xml:/app/coverage/coverage.xml",
+      "--junitxml=/app/test-results/junit.xml"
+    ]
+    labels:
+      - "com.edge-tpu-benchmark.service=testing"
 
+  # ==========================================================================
+  # Hardware Testing Service (requires actual TPU devices)
+  # ==========================================================================
+  test-hardware:
+    extends:
+      service: test
+    container_name: tpu-v5-test-hardware
+    <<: *tpu-devices
+    environment:
+      <<: *common-variables
+      RUN_HARDWARE_TESTS: "true"
+      RUN_SLOW_TESTS: "true"
+      EDGE_TPU_DEVICE_PATH: /dev/apex_0
+    command: [
+      "pytest", 
+      "tests/", 
+      "-v", 
+      "-m", "hardware",
+      "--cov=src"
+    ]
+    labels:
+      - "com.edge-tpu-benchmark.service=hardware-testing"
+
+  # ==========================================================================
+  # Continuous Integration Service
+  # ==========================================================================
+  ci:
+    extends:
+      service: test
+    container_name: tpu-v5-ci
+    environment:
+      <<: *common-variables
+      CI: "true"
+      PYTEST_TIMEOUT: 300
+    command: [
+      "bash", "-c", 
+      "pre-commit run --all-files && pytest tests/ -v --cov=src --cov-fail-under=80"
+    ]
+    labels:
+      - "com.edge-tpu-benchmark.service=ci"
+
+  # ==========================================================================
+  # Documentation Service
+  # ==========================================================================
   docs:
-    build: .
+    build:
+      context: .
+      target: development
+    image: edge-tpu-v5-benchmark:dev
     container_name: tpu-v5-docs
+    networks:
+      - benchmark-network
     volumes:
       - .:/app
       - ./docs/_build:/app/docs/_build
-    working_dir: /app/docs
+    working_dir: /app
     ports:
-      - "8000:8000"
-    command: ["python", "-m", "http.server", "8000", "--directory", "_build/html"]
+      - "8080:8000"
+    environment:
+      <<: *common-variables
+    command: [
+      "bash", "-c",
+      "cd docs && make html && cd _build/html && python -m http.server 8000"
+    ]
+    labels:
+      - "com.edge-tpu-benchmark.service=documentation"
+
+  # ==========================================================================
+  # Monitoring Services
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: tpu-v5-prometheus
+    networks:
+      - benchmark-network
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    labels:
+      - "com.edge-tpu-benchmark.service=monitoring"
+
+  grafana:
+    image: grafana/grafana:10.0.0
+    container_name: tpu-v5-grafana
+    networks:
+      - benchmark-network
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    labels:
+      - "com.edge-tpu-benchmark.service=monitoring"
+
+  # ==========================================================================
+  # Load Balancer for Multi-Instance Benchmarking
+  # ==========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: tpu-v5-nginx
+    networks:
+      - benchmark-network
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - benchmark
+      - docs
+      - grafana
+    restart: unless-stopped
+    labels:
+      - "com.edge-tpu-benchmark.service=load-balancer"
+
+  # ==========================================================================
+  # Database for Results Storage
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: tpu-v5-postgres
+    networks:
+      - benchmark-network
+    environment:
+      POSTGRES_DB: benchmark_results
+      POSTGRES_USER: benchmark
+      POSTGRES_PASSWORD: secure_password_change_me
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    labels:
+      - "com.edge-tpu-benchmark.service=database"
+
+  # ==========================================================================
+  # Redis for Caching and Job Queue
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: tpu-v5-redis
+    networks:
+      - benchmark-network
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    labels:
+      - "com.edge-tpu-benchmark.service=cache"
+
+volumes:
+  postgres-data:
+  redis-data:
