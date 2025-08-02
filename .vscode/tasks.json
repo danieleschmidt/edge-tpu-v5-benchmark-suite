@@ -5,7 +5,7 @@
       "label": "Install Dependencies",
       "type": "shell",
       "command": "pip",
-      "args": ["install", "-e", ".[dev,test]"],
+      "args": ["install", "-e", ".[dev,test,docs]"],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -13,13 +13,16 @@
         "focus": false,
         "panel": "shared"
       },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
-      "label": "Run Tests",
+      "label": "Run All Tests",
       "type": "shell",
-      "command": "pytest",
-      "args": ["tests/", "-v"],
+      "command": "python",
+      "args": ["-m", "pytest", "tests/", "-v", "--tb=short"],
       "group": "test",
       "presentation": {
         "echo": true,
@@ -27,18 +30,75 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      },
+      "problemMatcher": [
+        {
+          "owner": "python",
+          "fileLocation": ["relative", "${workspaceFolder}"],
+          "pattern": [
+            {
+              "regexp": "^(.*):(\\d+): (.*)$",
+              "file": 1,
+              "line": 2,
+              "message": 3
+            }
+          ]
+        }
+      ]
     },
     {
-      "label": "Run Tests with Coverage",
+      "label": "Run Unit Tests",
       "type": "shell",
-      "command": "pytest",
+      "command": "python",
+      "args": ["-m", "pytest", "tests/unit/", "-v"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Run Integration Tests",
+      "type": "shell",
+      "command": "python",
+      "args": ["-m", "pytest", "tests/integration/", "-v"],
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
+    },
+    {
+      "label": "Test Coverage",
+      "type": "shell",
+      "command": "python",
       "args": [
-        "tests/",
-        "--cov=src",
+        "-m", "pytest",
+        "--cov=edge_tpu_v5_benchmark",
         "--cov-report=html",
-        "--cov-report=term-missing",
-        "-v"
+        "--cov-report=term",
+        "tests/"
       ],
       "group": "test",
       "presentation": {
@@ -47,41 +107,18 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
-    },
-    {
-      "label": "Format Code",
-      "type": "shell",
-      "command": "black",
-      "args": ["src", "tests", "--line-length=88"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "silent",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Sort Imports",
-      "type": "shell",
-      "command": "isort",
-      "args": ["src", "tests", "--profile=black"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "silent",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
     },
     {
       "label": "Lint Code",
       "type": "shell",
       "command": "ruff",
-      "args": ["check", "src", "tests"],
+      "args": ["check", "src/", "tests/"],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -89,26 +126,46 @@
         "focus": false,
         "panel": "shared"
       },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [
         {
-          "owner": "python",
+          "owner": "ruff",
           "fileLocation": ["relative", "${workspaceFolder}"],
-          "pattern": {
-            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(\\w+)\\s+(.+)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
+          "pattern": [
+            {
+              "regexp": "^(.+):(\\d+):(\\d+): (.+)$",
+              "file": 1,
+              "line": 2,
+              "column": 3,
+              "message": 4
+            }
+          ]
         }
       ]
+    },
+    {
+      "label": "Format Code",
+      "type": "shell",
+      "command": "black",
+      "args": ["src/", "tests/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     },
     {
       "label": "Type Check",
       "type": "shell",
       "command": "mypy",
-      "args": ["src"],
+      "args": ["src/"],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -116,26 +173,30 @@
         "focus": false,
         "panel": "shared"
       },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [
         {
-          "owner": "python",
+          "owner": "mypy",
           "fileLocation": ["relative", "${workspaceFolder}"],
-          "pattern": {
-            "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning|note):\\s+(.+)$",
-            "file": 1,
-            "line": 2,
-            "column": 3,
-            "severity": 4,
-            "message": 5
-          }
+          "pattern": [
+            {
+              "regexp": "^(.+):(\\d+): (.+): (.+)$",
+              "file": 1,
+              "line": 2,
+              "severity": 3,
+              "message": 4
+            }
+          ]
         }
       ]
     },
     {
-      "label": "Security Check",
+      "label": "Run Benchmark CLI",
       "type": "shell",
-      "command": "bandit",
-      "args": ["-r", "src", "-f", "json"],
+      "command": "python",
+      "args": ["-m", "edge_tpu_v5_benchmark.cli", "--help"],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -143,7 +204,12 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PYTHONPATH": "${workspaceFolder}/src"
+        }
+      }
     },
     {
       "label": "Build Package",
@@ -157,48 +223,18 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     },
     {
-      "label": "Clean Build Artifacts",
+      "label": "Build Docker Image",
       "type": "shell",
-      "command": "rm",
-      "args": ["-rf", "build/", "dist/", "*.egg-info/", ".pytest_cache/", "__pycache__/"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "silent",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Run Benchmark Detection",
-      "type": "shell",
-      "command": "python",
-      "args": ["-m", "edge_tpu_v5_benchmark.cli", "detect"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Run Quick Benchmark",
-      "type": "shell",
-      "command": "python",
+      "command": "docker",
       "args": [
-        "-m",
-        "edge_tpu_v5_benchmark.cli",
-        "run",
-        "--model",
-        "mobilenet_v3",
-        "--iterations",
-        "10"
+        "build",
+        "-t", "edge-tpu-v5-benchmark:latest",
+        "."
       ],
       "group": "build",
       "presentation": {
@@ -207,13 +243,18 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     },
     {
-      "label": "Install Pre-commit Hooks",
+      "label": "Clean Cache",
       "type": "shell",
-      "command": "pre-commit",
-      "args": ["install"],
+      "command": "bash",
+      "args": [
+        "-c",
+        "find . -type f -name '*.pyc' -delete && find . -type d -name '__pycache__' -delete && rm -rf .pytest_cache .mypy_cache htmlcov *.egg-info build dist"
+      ],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -221,10 +262,12 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     },
     {
-      "label": "Run Pre-commit on All Files",
+      "label": "Pre-commit All Files",
       "type": "shell",
       "command": "pre-commit",
       "args": ["run", "--all-files"],
@@ -235,13 +278,15 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     },
     {
-      "label": "Update Dependencies",
+      "label": "Setup Development Environment",
       "type": "shell",
-      "command": "pip",
-      "args": ["install", "--upgrade", "-e", ".[dev,test]"],
+      "command": "bash",
+      "args": [".devcontainer/post-create.sh"],
       "group": "build",
       "presentation": {
         "echo": true,
@@ -249,56 +294,51 @@
         "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
-    },
-    {
-      "label": "Generate Documentation",
-      "type": "shell",
-      "command": "sphinx-build",
-      "args": ["-b", "html", "docs/", "docs/_build/html"],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
-      "problemMatcher": []
+      "dependsOrder": "sequence",
+      "dependsOn": ["Install Dependencies"]
     },
     {
-      "label": "Docker Build",
+      "label": "Start Jupyter Lab",
       "type": "shell",
-      "command": "docker",
-      "args": ["build", "-t", "edge-tpu-v5-benchmark:dev", "."],
-      "group": "build",
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "Docker Run",
-      "type": "shell",
-      "command": "docker",
+      "command": "jupyter",
       "args": [
-        "run",
-        "--rm",
-        "-it",
-        "--device=/dev/apex_0:/dev/apex_0",
-        "edge-tpu-v5-benchmark:dev",
-        "detect"
+        "lab",
+        "--ip=0.0.0.0",
+        "--port=8888",
+        "--no-browser",
+        "--allow-root"
       ],
       "group": "build",
       "presentation": {
         "echo": true,
         "reveal": "always",
         "focus": false,
+        "panel": "new"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Generate Documentation",
+      "type": "shell",
+      "command": "sphinx-build",
+      "args": ["-b", "html", "docs/", "docs/_build/html/"],
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
         "panel": "shared"
       },
-      "problemMatcher": []
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
     }
   ]
 }

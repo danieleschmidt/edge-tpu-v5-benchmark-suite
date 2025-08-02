@@ -1,0 +1,80 @@
+{
+  "recommendations": [
+    // Python Development
+    "ms-python.python",
+    "ms-python.black-formatter",
+    "charliermarsh.ruff",
+    "ms-python.mypy-type-checker",
+    "ms-python.pylint",
+    
+    // Jupyter Notebooks
+    "ms-toolsai.jupyter",
+    "ms-toolsai.jupyter-keymap",
+    "ms-toolsai.jupyter-renderers",
+    
+    // AI Assistance
+    "GitHub.copilot",
+    "GitHub.copilot-chat",
+    
+    // Git and Version Control
+    "eamodio.gitlens",
+    "GitHub.vscode-pull-request-github",
+    "GitHub.vscode-github-actions",
+    
+    // File Format Support
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "ms-vscode.vscode-markdown",
+    
+    // Container and Docker
+    "ms-azuretools.vscode-docker",
+    "ms-vscode-remote.remote-containers",
+    
+    // Documentation
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint",
+    "bierner.markdown-mermaid",
+    
+    // Testing
+    "ms-python.pytest",
+    "hbenl.vscode-test-explorer",
+    
+    // Code Quality
+    "ms-python.isort",
+    "ms-vscode.vscode-todo-highlight",
+    "streetsidesoftware.code-spell-checker",
+    
+    // Productivity
+    "ms-vscode.vscode-json5",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "bradlc.vscode-tailwindcss",
+    
+    // Themes and UI
+    "PKief.material-icon-theme",
+    "GitHub.github-vscode-theme",
+    
+    // Remote Development
+    "ms-vscode-remote.remote-ssh",
+    "ms-vscode-remote.remote-wsl",
+    
+    // Data Science
+    "ms-toolsai.vscode-ai",
+    "RandomFractalsInc.vscode-data-preview",
+    
+    // DevOps
+    "ms-kubernetes-tools.vscode-kubernetes-tools",
+    "redhat.vscode-tekton-pipelines",
+    
+    // Performance and Profiling
+    "ms-python.debugpy",
+    "ms-vscode.vscode-cpu-profiler"
+  ],
+  "unwantedRecommendations": [
+    // Avoid conflicting or redundant extensions
+    "ms-python.flake8",
+    "ms-python.pep8",
+    "ms-python.autopep8"
+  ]
+}
