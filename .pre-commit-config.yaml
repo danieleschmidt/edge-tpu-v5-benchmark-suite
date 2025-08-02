@@ -1,55 +1,169 @@
 repos:
+  # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: [--unsafe]  # Allow custom YAML tags
       - id: check-added-large-files
+        args: [--maxkb=1000]
       - id: check-merge-conflict
       - id: check-toml
       - id: check-json
       - id: debug-statements
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: pretty-format-json
+        args: [--autofix, --indent=2]
+      - id: requirements-txt-fixer
 
+  # Python code formatting
   - repo: https://github.com/psf/black
-    rev: 23.3.0
+    rev: 24.1.1
     hooks:
       - id: black
-        args: [--line-length=88]
+        args: [--line-length=88, --target-version=py38]
         language_version: python3
 
+  # Import sorting
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
-        args: [--profile=black, --line-length=88]
+        args: [--profile=black, --line-length=88, --multi-line=3, --trailing-comma]
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.272
+  # Linting and code quality
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.15
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --show-fixes]
+      - id: ruff-format
 
+  # Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.3.0
+    rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-requests]
-        args: [--ignore-missing-imports]
+        additional_dependencies: [
+          types-requests,
+          types-setuptools,
+          types-psutil,
+          pydantic
+        ]
+        args: [--ignore-missing-imports, --strict-optional]
 
+  # Security scanning
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+    rev: 1.7.6
     hooks:
       - id: bandit
-        args: [-r, src/]
+        args: [-r, src/, -f, json, -o, bandit-report.json]
         exclude: tests/
 
+  # Additional security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: package.lock.json
+
+  # Documentation checks
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        args: [--convention=google, --add-ignore=D100,D104,D105,D107]
+        files: ^src/
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: [--ignore, DL3008, --ignore, DL3009]
+
+  # YAML formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+        types: [yaml]
+        exclude: .pre-commit-config.yaml
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+
+  # Commit message formatting
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  # Local hooks for project-specific checks
   - repo: local
     hooks:
+      # Fast test subset for pre-commit
       - id: pytest-check
         name: pytest-check
         entry: pytest
         language: system
         pass_filenames: false
+        always_run: false
+        args: [tests/unit/, -x, -q, --tb=short, --maxfail=3]
+        stages: [commit]
+
+      # Check for common security issues in dependencies
+      - id: safety-check
+        name: safety-check
+        entry: safety
+        language: system
+        args: [check, --json]
+        pass_filenames: false
         always_run: true
-        args: [tests/, -x, -q, --tb=short]
+
+      # Validate pyproject.toml
+      - id: validate-pyproject-toml
+        name: validate-pyproject-toml
+        entry: python
+        language: system
+        args: [-c, "import tomllib; tomllib.load(open('pyproject.toml', 'rb'))"]
+        files: pyproject.toml
+        pass_filenames: false
+
+      # Check for TODO/FIXME without issue references
+      - id: check-todos
+        name: check-todos
+        entry: python
+        language: system
+        args: [-c, "
+import sys, re;
+files = sys.argv[1:];
+todos = [];
+for f in files:
+  try:
+    with open(f) as file:
+      for i, line in enumerate(file, 1):
+        if re.search(r'(TODO|FIXME|XXX|HACK)(?!.*#\d+)', line, re.IGNORECASE):
+          todos.append(f'{f}:{i}: {line.strip()}');
+  except: pass;
+if todos:
+  print('\\n'.join(todos));
+  print('\\nTODO/FIXME items should reference GitHub issues (e.g., # TODO: Fix this #123)');
+  sys.exit(1)
+        "]
+        types: [python]
