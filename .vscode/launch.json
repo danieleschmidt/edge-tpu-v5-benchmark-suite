@@ -1,0 +1,137 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Benchmark CLI",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_tpu_v5_benchmark.cli",
+      "args": [
+        "run",
+        "--help"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug Benchmark Run",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_tpu_v5_benchmark.cli",
+      "args": [
+        "run",
+        "--model",
+        "mobilenet_v3",
+        "--iterations",
+        "10",
+        "--verbose"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug Model Conversion",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_tpu_v5_benchmark.cli",
+      "args": [
+        "convert",
+        "--input",
+        "examples/model.onnx",
+        "--output",
+        "model_tpu.tflite",
+        "--verbose"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug TPU Detection",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_tpu_v5_benchmark.cli",
+      "args": [
+        "detect",
+        "--verbose"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug Power Profiling",
+      "type": "python",
+      "request": "launch",
+      "module": "edge_tpu_v5_benchmark.power",
+      "args": [],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug Tests",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/",
+        "-v",
+        "--tb=short"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Debug Specific Test",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/test_benchmark.py::TestBenchmark::test_basic_benchmark",
+        "-v",
+        "-s"
+      ],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Python: Current File (External Terminal)",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "externalTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "python": "${workspaceFolder}/venv/bin/python"
+    },
+    {
+      "name": "Attach to Process",
+      "type": "python",
+      "request": "attach",
+      "processId": "${command:pickProcess}",
+      "justMyCode": false
+    }
+  ]
+}
