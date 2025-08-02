@@ -1,0 +1,1 @@
+"""Test fixtures and data for Edge TPU v5 Benchmark Suite tests."""
