@@ -94,10 +94,45 @@ class CompiledTPUModel:
     
     def get_info(self) -> Dict[str, Any]:
         """Get model information."""
-        return {
+        info = {
             "path": self.path,
+            "original_path": self.original_path,
             "format": self.format,
             "target": self.target,
             "optimization_level": self.optimization_level,
-            "compiled": self._compiled
+            "compiled": self._compiled,
+            "inference_count": self._inference_count,
+            "total_inference_time": self._total_inference_time,
+            "avg_inference_time": self._total_inference_time / max(1, self._inference_count)
+        }
+        
+        # Add metadata if available
+        if self.metadata:
+            info["metadata"] = self.metadata.to_dict()
+        
+        return info
+    
+    def reset_stats(self):
+        """Reset inference statistics."""
+        self._inference_count = 0
+        self._total_inference_time = 0.0
+    
+    def get_performance_stats(self) -> Dict[str, float]:
+        """Get performance statistics."""
+        if self._inference_count == 0:
+            return {
+                "inference_count": 0,
+                "total_time": 0.0,
+                "avg_time": 0.0,
+                "throughput": 0.0
+            }
+        
+        avg_time = self._total_inference_time / self._inference_count
+        throughput = self._inference_count / self._total_inference_time if self._total_inference_time > 0 else 0
+        
+        return {
+            "inference_count": self._inference_count,
+            "total_time": self._total_inference_time,
+            "avg_time": avg_time,
+            "throughput": throughput
         }

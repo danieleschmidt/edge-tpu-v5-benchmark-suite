@@ -1,10 +1,46 @@
-"""Tests for models module."""
+"""Tests for model loading and management."""
 
 import pytest
-from unittest.mock import Mock, patch
+import tempfile
+import json
+import time
+from unittest.mock import Mock, patch, MagicMock
 from pathlib import Path
+import numpy as np
 
-from edge_tpu_v5_benchmark.models import ModelLoader, CompiledTPUModel
+from edge_tpu_v5_benchmark.models import (
+    ModelLoader, 
+    CompiledTPUModel, 
+    ModelRegistry,
+    ModelOptimizer,
+    ModelMetadata
+)
+
+
+class TestModelMetadata:
+    """Test cases for ModelMetadata dataclass."""
+    
+    def test_metadata_creation(self):
+        """Test creating ModelMetadata."""
+        metadata = ModelMetadata(
+            name="test_model",
+            format="onnx",
+            size_bytes=1000000,
+            input_shape=(1, 3, 224, 224),
+            output_shape=(1, 1000),
+            num_parameters=500000,
+            hash_sha256="abc123",
+            supported_ops_count=50,
+            unsupported_ops_count=2,
+            compilation_time_seconds=5.0,
+            optimization_level=3,
+            target_device="tpu_v5_edge"
+        )
+        
+        assert metadata.name == "test_model"
+        assert metadata.format == "onnx"
+        assert metadata.input_shape == (1, 3, 224, 224)
+        assert metadata.num_parameters == 500000
 
 
 class TestModelLoader:
