@@ -432,7 +432,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ```bibtex
 @software{edge_tpu_v5_benchmark_suite,
   title={Edge TPU v5 Benchmark Suite: Comprehensive Performance Analysis},
-  author={Your Name},
+  author={Daniel Schmidt},
   year={2025},
   url={https://github.com/yourusername/edge-tpu-v5-benchmark-suite}
 }
