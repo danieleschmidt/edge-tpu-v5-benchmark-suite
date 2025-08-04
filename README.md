@@ -434,7 +434,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
   title={Edge TPU v5 Benchmark Suite: Comprehensive Performance Analysis},
   author={Daniel Schmidt},
   year={2025},
-  url={https://github.com/yourusername/edge-tpu-v5-benchmark-suite}
+  url={https://github.com/danieleschmidt/edge-tpu-v5-benchmark-suite}
 }
 ```
 
