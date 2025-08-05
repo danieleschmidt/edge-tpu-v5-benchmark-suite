@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tpu-v5-benchmark
+  namespace: edge-tpu-benchmark
+  labels:
+    app.kubernetes.io/name: edge-tpu-v5-benchmark
+    app.kubernetes.io/instance: production
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: benchmark
+    app.kubernetes.io/part-of: edge-tpu-benchmark-suite
+    app.kubernetes.io/managed-by: terragon-autonomous-sdlc
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: edge-tpu-v5-benchmark
+      app.kubernetes.io/instance: production
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: edge-tpu-v5-benchmark
+        app.kubernetes.io/instance: production
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/component: benchmark
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        runAsNonRoot: true
+      containers:
+      - name: benchmark
+        image: edge-tpu-v5-benchmark:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: EDGE_TPU_CACHE_DIR
+          value: "/app/cache"
+        - name: BENCHMARK_OUTPUT_DIR
+          value: "/app/results"
+        - name: MODEL_CACHE_DIR
+          value: "/app/models"
+        - name: EDGE_TPU_DEVICE_PATH
+          value: "/dev/apex_0"
+        - name: BENCHMARK_DEFAULT_ITERATIONS
+          value: "1000"
+        - name: POWER_MEASUREMENT_ENABLED
+          value: "true"
+        - name: TELEMETRY_ENABLED
+          value: "true"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+            ephemeral-storage: "2Gi"
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+            ephemeral-storage: "10Gi"
+        volumeMounts:
+        - name: models-cache
+          mountPath: /app/models
+        - name: results-storage
+          mountPath: /app/results
+        - name: cache-storage
+          mountPath: /app/cache
+        - name: device-apex
+          mountPath: /dev/apex_0
+          readOnly: false
+        livenessProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 10
+      volumes:
+      - name: models-cache
+        persistentVolumeClaim:
+          claimName: models-cache-pvc
+      - name: results-storage
+        persistentVolumeClaim:
+          claimName: results-storage-pvc
+      - name: cache-storage
+        emptyDir:
+          sizeLimit: 5Gi
+      - name: device-apex
+        hostPath:
+          path: /dev/apex_0
+          type: CharDevice
+      nodeSelector:
+        hardware.edge.io/tpu: "v5"
+      tolerations:
+      - key: hardware.edge.io/tpu
+        operator: Equal
+        value: v5
+        effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: hardware.edge.io/tpu
+                operator: In
+                values:
+                - v5
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - edge-tpu-v5-benchmark
+              topologyKey: kubernetes.io/hostname

@@ -18,6 +18,8 @@ from .config import (
     initialize_config,
     get_config_manager
 )
+from .compiler import CompilerAnalyzer, TPUv5Optimizer, CompilerAnalysis
+from .converter import ONNXToTPUv5, TensorFlowToTPUv5, PyTorchToTPUv5, prepare_for_tpu_v5
 
 __all__ = [
     # Core classes
@@ -42,6 +44,17 @@ __all__ = [
     "get_config",
     "initialize_config",
     "get_config_manager",
+    
+    # Compiler and optimization
+    "CompilerAnalyzer",
+    "TPUv5Optimizer", 
+    "CompilerAnalysis",
+    
+    # Model conversion
+    "ONNXToTPUv5",
+    "TensorFlowToTPUv5", 
+    "PyTorchToTPUv5",
+    "prepare_for_tpu_v5",
     
     # Metadata
     "__version__"

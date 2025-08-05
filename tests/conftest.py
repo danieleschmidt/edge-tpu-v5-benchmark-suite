@@ -1,13 +1,16 @@
-"""Pytest configuration and shared fixtures for Edge TPU v5 Benchmark Suite tests."""
-
-import os
-import tempfile
-from pathlib import Path
-from typing import Dict, Any, Generator
-from unittest.mock import Mock, MagicMock
+"""Pytest configuration and shared fixtures for TPU v5 benchmark suite tests."""
 
 import pytest
-import numpy as np
+import tempfile
+import logging
+import asyncio
+from pathlib import Path
+from unittest.mock import Mock, patch
+import sys
+import os
+
+# Add src directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 # Test configuration constants
