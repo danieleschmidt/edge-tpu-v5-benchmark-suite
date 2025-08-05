@@ -1,0 +1,112 @@
+groups:
+  - name: tpu_v5_benchmark_alerts
+    rules:
+      # High latency alert
+      - alert: HighBenchmarkLatency
+        expr: benchmark_latency_p95_milliseconds > 1000
+        for: 2m
+        labels:
+          severity: warning
+          service: benchmark
+        annotations:
+          summary: "High benchmark latency detected"
+          description: "Benchmark P95 latency is {{ $value }}ms, above threshold of 1000ms"
+
+      # Low throughput alert
+      - alert: LowBenchmarkThroughput
+        expr: benchmark_throughput_inferences_per_second < 10
+        for: 5m
+        labels:
+          severity: warning
+          service: benchmark
+        annotations:
+          summary: "Low benchmark throughput detected"
+          description: "Benchmark throughput is {{ $value }} inferences/sec, below threshold of 10"
+
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: rate(benchmark_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: benchmark
+        annotations:
+          summary: "High error rate in benchmark service"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes"
+
+      # TPU device unavailable
+      - alert: TPUDeviceUnavailable
+        expr: tpu_device_available == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: tpu
+        annotations:
+          summary: "TPU device is unavailable"
+          description: "TPU device at {{ $labels.device_path }} is not available"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / 1024 / 1024 / 1024) > 6
+        for: 5m
+        labels:
+          severity: warning
+          service: benchmark
+        annotations:
+          summary: "High memory usage in benchmark service"
+          description: "Memory usage is {{ $value | humanize }}GB, above 6GB threshold"
+
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: benchmark
+        annotations:
+          summary: "High CPU usage in benchmark service"
+          description: "CPU usage is {{ $value | humanizePercentage }}, above 80% threshold"
+
+      # Queue size growing
+      - alert: BenchmarkQueueGrowing
+        expr: benchmark_queue_size > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: benchmark
+        annotations:
+          summary: "Benchmark queue is growing"
+          description: "Queue size is {{ $value }}, above threshold of 50"
+
+      # Service down
+      - alert: BenchmarkServiceDown
+        expr: up{job="tpu-v5-benchmark"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: benchmark
+        annotations:
+          summary: "Benchmark service is down"
+          description: "Benchmark service has been down for more than 1 minute"
+
+      # Cache hit rate low
+      - alert: LowCacheHitRate
+        expr: cache_hit_rate_percent < 80
+        for: 10m
+        labels:
+          severity: warning
+          service: cache
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value }}%, below 80% threshold"
+
+      # Auto-scaling issues
+      - alert: ScalingActionsFailed
+        expr: increase(scaling_actions_failed_total[1h]) > 5
+        for: 0m
+        labels:
+          severity: warning
+          service: autoscaling
+        annotations:
+          summary: "Multiple scaling actions failed"
+          description: "{{ $value }} scaling actions failed in the last hour"

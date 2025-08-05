@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edge-tpu-benchmark
+  labels:
+    name: edge-tpu-benchmark
+    app.kubernetes.io/name: edge-tpu-v5-benchmark
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: namespace
+    app.kubernetes.io/part-of: edge-tpu-benchmark-suite
+    app.kubernetes.io/managed-by: terragon-autonomous-sdlc
