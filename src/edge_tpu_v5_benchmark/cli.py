@@ -13,6 +13,7 @@ import numpy as np
 from . import __version__
 from .benchmark import TPUv5Benchmark
 from .models import ModelLoader, ModelRegistry
+from .quantum_cli import quantum_cli
 
 console = Console()
 
@@ -22,6 +23,10 @@ console = Console()
 def main():
     """Edge TPU v5 Benchmark Suite CLI."""
     pass
+
+
+# Add quantum planning sub-command
+main.add_command(quantum_cli, name='quantum')
 
 
 @main.command()

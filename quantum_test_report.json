@@ -1,0 +1,39 @@
+{
+  "timestamp": 1754451713.0447161,
+  "total_duration": 0.9953896999359131,
+  "results": {
+    "Import Tests": {
+      "passed": false,
+      "duration": 0.07607030868530273
+    },
+    "Code Quality": {
+      "passed": true,
+      "duration": 0.39619016647338867
+    },
+    "Unit Tests": {
+      "passed": true,
+      "duration": 0.0001952648162841797
+    },
+    "Integration Tests": {
+      "passed": true,
+      "duration": 8.058547973632812e-05
+    },
+    "CLI Tests": {
+      "passed": false,
+      "duration": 0.15012669563293457
+    },
+    "Demo Script": {
+      "passed": false,
+      "duration": 0.3724374771118164
+    },
+    "Performance Tests": {
+      "passed": true,
+      "duration": 0.00023603439331054688
+    }
+  },
+  "summary": {
+    "total_tests": 7,
+    "passed_tests": 4,
+    "success_rate": 0.5714285714285714
+  }
+}
