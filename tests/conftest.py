@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import sys
 import os
+from typing import Dict, Any, Generator
 
 # Add src directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

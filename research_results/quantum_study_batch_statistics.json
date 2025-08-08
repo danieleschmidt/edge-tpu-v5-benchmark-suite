@@ -1,0 +1,12 @@
+{
+  "quantum_vs_heft": {
+    "makespan": {
+      "quantum_mean": 25.0,
+      "quantum_std": 0.0,
+      "classical_mean": 50.546637686727436,
+      "classical_std": 3.8064938319260953,
+      "mean_difference": -25.546637686727436,
+      "percent_improvement": -50.540726061855324,
+      "test_statistic": -29.254010893102265,
+      "p_value": 1.1494565845134437e-27,
+      "significant": 
