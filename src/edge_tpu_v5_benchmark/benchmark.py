@@ -1,6 +1,6 @@
 """Core benchmark implementation for TPU v5 edge devices."""
 
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Callable
 from dataclasses import dataclass
 import time
 import statistics
@@ -9,6 +9,10 @@ import threading
 import logging
 from pathlib import Path
 import json
+import subprocess
+import os
+import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 @dataclass
@@ -99,7 +103,26 @@ class TPUv5Benchmark:
     def _is_device_available(self) -> bool:
         """Check if TPU device is available."""
         try:
-            return Path(self.device_path).exists()
+            # Check for TPU v5 device files
+            if Path(self.device_path).exists():
+                return True
+            
+            # Check for alternative TPU device paths
+            alt_paths = ["/dev/apex_0", "/dev/edgetpu0", "/sys/class/apex/apex_0"]
+            for path in alt_paths:
+                if Path(path).exists():
+                    self.device_path = path
+                    return True
+            
+            # Check via system commands
+            try:
+                result = subprocess.run(['lsusb'], capture_output=True, text=True, timeout=5)
+                if 'Google Inc.' in result.stdout or 'Coral' in result.stdout:
+                    return True
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+                
+            return False
         except Exception:
             return False
     

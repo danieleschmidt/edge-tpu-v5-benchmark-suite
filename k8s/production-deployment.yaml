@@ -1,0 +1,415 @@
+# =============================================================================
+# Production Kubernetes Deployment for Edge TPU v5 Benchmark Suite
+# Terragon Autonomous SDLC Implementation - Production Ready
+# =============================================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-tpu-v5-benchmark
+  namespace: tpu-benchmark
+  labels:
+    app: tpu-benchmark
+    version: v0.1.0
+    component: benchmark
+    terragon.ai/managed: "true"
+    terragon.ai/deployment-strategy: "autonomous"
+    terragon.ai/quality-gate-status: "passed"
+spec:
+  replicas: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: tpu-benchmark
+      component: benchmark
+  template:
+    metadata:
+      labels:
+        app: tpu-benchmark
+        component: benchmark
+        version: v0.1.0
+        terragon.ai/managed: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+        terragon.ai/auto-scale: "enabled"
+        terragon.ai/quantum-planning: "enabled"
+        terragon.ai/security-scan: "passed"
+        # Security annotations
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        container.apparmor.security.beta.kubernetes.io/benchmark: runtime/default
+    spec:
+      serviceAccountName: tpu-benchmark
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: benchmark
+        image: edge-tpu-v5-benchmark:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        - containerPort: 9090
+          name: metrics
+          protocol: TCP
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: EDGE_TPU_DEVICE_PATH
+          value: "/dev/apex_0"
+        - name: BENCHMARK_DEFAULT_ITERATIONS
+          value: "1000"
+        - name: POWER_MEASUREMENT_ENABLED
+          value: "true"
+        - name: TELEMETRY_ENABLED
+          value: "true"
+        - name: QUANTUM_PLANNING_ENABLED
+          value: "true"
+        - name: AUTO_SCALING_ENABLED
+          value: "true"
+        - name: PRODUCTION_MODE
+          value: "true"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: benchmark-secrets
+              key: sentry-dsn
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        resources:
+          requests:
+            cpu: "1000m"
+            memory: "2Gi"
+            ephemeral-storage: "4Gi"
+            edge-tpu.io/tpu: "1"
+          limits:
+            cpu: "4000m"
+            memory: "8Gi"
+            ephemeral-storage: "20Gi"
+            edge-tpu.io/tpu: "1"
+        livenessProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        startupProbe:
+          exec:
+            command:
+            - edge-tpu-v5-benchmark
+            - detect
+            - --quiet
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12
+          successThreshold: 1
+        volumeMounts:
+        - name: models-cache
+          mountPath: /app/models
+          readOnly: false
+        - name: results-storage
+          mountPath: /app/results
+          readOnly: false
+        - name: cache-storage
+          mountPath: /app/cache
+          readOnly: false
+        - name: config
+          mountPath: /app/config
+          readOnly: true
+        - name: secrets
+          mountPath: /app/secrets
+          readOnly: true
+        - name: tmp-storage
+          mountPath: /tmp
+          readOnly: false
+        - name: tpu-device
+          mountPath: /dev/apex_0
+          readOnly: false
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - DAC_OVERRIDE  # Required for TPU device access
+          seccompProfile:
+            type: RuntimeDefault
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - "edge-tpu-v5-benchmark stop --graceful --timeout=30"
+      initContainers:
+      - name: device-setup
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Setting up TPU device permissions..."
+          if [ -e /dev/apex_0 ]; then
+            chmod 664 /dev/apex_0 || echo "Could not change TPU permissions"
+            echo "TPU device found and configured"
+          else
+            echo "No TPU device found - will run in simulation mode"
+          fi
+          
+          echo "Initializing cache directories..."
+          mkdir -p /app/cache/{models,results,analysis,conversions}
+          chown -R 1001:1001 /app/cache
+          echo "Cache directories initialized"
+        securityContext:
+          runAsUser: 0
+          allowPrivilegeEscalation: true
+        volumeMounts:
+        - name: tpu-device
+          mountPath: /dev/apex_0
+        - name: cache-storage
+          mountPath: /app/cache
+      volumes:
+      - name: models-cache
+        persistentVolumeClaim:
+          claimName: models-pvc
+      - name: results-storage
+        persistentVolumeClaim:
+          claimName: results-pvc
+      - name: cache-storage
+        persistentVolumeClaim:
+          claimName: cache-pvc
+      - name: tmp-storage
+        emptyDir:
+          sizeLimit: 2Gi
+      - name: config
+        configMap:
+          name: benchmark-config
+          defaultMode: 0644
+      - name: secrets
+        secret:
+          secretName: benchmark-secrets
+          defaultMode: 0600
+      - name: tpu-device
+        hostPath:
+          path: /dev/apex_0
+          type: CharDevice
+      nodeSelector:
+        accelerator: edge-tpu-v5
+        kubernetes.io/arch: amd64
+        node.kubernetes.io/instance-type: tpu-enabled
+        node-role: worker
+      tolerations:
+      - key: "edge-tpu.io/tpu"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: accelerator
+                operator: In
+                values:
+                - edge-tpu-v5
+              - key: node-role
+                operator: NotIn
+                values:
+                - master
+                - control-plane
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - tpu-benchmark
+            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: component
+                  operator: In
+                  values:
+                  - benchmark
+              topologyKey: failure-domain.beta.kubernetes.io/zone
+      terminationGracePeriodSeconds: 60
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-tpu-v5-benchmark-service
+  namespace: tpu-benchmark
+  labels:
+    app: tpu-benchmark
+    component: benchmark
+    terragon.ai/service-tier: "production"
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "tcp"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-interval: "10"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-timeout: "6"
+    service.beta.kubernetes.io/aws-load-balancer-healthy-threshold: "2"
+    service.beta.kubernetes.io/aws-load-balancer-unhealthy-threshold: "2"
+    prometheus.io/probe: "true"
+    prometheus.io/probe-path: "/health"
+spec:
+  type: LoadBalancer
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8000
+    protocol: TCP
+    name: https
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: tpu-benchmark
+    component: benchmark
+  loadBalancerSourceRanges:
+  - 10.0.0.0/8      # Private networks
+  - 172.16.0.0/12   # Private networks  
+  - 192.168.0.0/16  # Private networks
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: benchmark-metrics
+  namespace: tpu-benchmark
+  labels:
+    app: tpu-benchmark
+    component: monitoring
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: metrics
+  selector:
+    app: tpu-benchmark
+    component: benchmark
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: edge-tpu-v5-benchmark-pdb
+  namespace: tpu-benchmark
+  labels:
+    app: tpu-benchmark
+    terragon.ai/availability: "high"
+spec:
+  minAvailable: 3
+  selector:
+    matchLabels:
+      app: tpu-benchmark
+      component: benchmark
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: benchmark-network-policy
+  namespace: tpu-benchmark
+spec:
+  podSelector:
+    matchLabels:
+      app: tpu-benchmark
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
