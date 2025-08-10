@@ -59,10 +59,24 @@ class TestBenchmarkResults:
         results = BenchmarkResults(
             throughput=1000.0,
             latency_p99=1.2,
+            latency_p95=1.1,
+            latency_p50=0.9,
+            latency_mean=1.0,
+            latency_std=0.1,
             avg_power=0.85,
+            peak_power=1.2,
+            min_power=0.7,
+            energy_consumed=0.85,
             inferences_per_watt=1176,
             total_iterations=1000,
-            duration_seconds=1.0
+            warmup_iterations=100,
+            duration_seconds=1.0,
+            success_rate=1.0,
+            memory_usage_mb=512.0,
+            cpu_utilization=45.5,
+            thermal_state="normal",
+            raw_latencies=[1.0, 1.1, 0.9],
+            raw_power_samples=[0.8, 0.9, 0.85]
         )
         
         assert results.throughput == 1000.0
