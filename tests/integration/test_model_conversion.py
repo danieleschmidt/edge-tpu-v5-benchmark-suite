@@ -5,7 +5,8 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import tempfile
 
-from edge_tpu_v5_benchmark.models import ModelConverter, ModelLoader
+from edge_tpu_v5_benchmark.models import ModelLoader
+from edge_tpu_v5_benchmark.converter import ONNXToTPUv5 as ModelConverter
 
 
 class TestModelConversionIntegration:

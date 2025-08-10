@@ -13,6 +13,13 @@ import subprocess
 import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
+import socket
+import psutil
+from typing import Set
+import re
+from .security import SecurityContext, InputValidator, SecurityLoggingFilter, DataSanitizer
+from .performance import AdaptiveCache, ResourcePool, PerformanceMonitor, AutoScaler
 
 
 @dataclass
@@ -85,20 +92,61 @@ class TPUv5Benchmark:
         Args:
             device_path: Path to TPU device
             enable_power_monitoring: Enable real-time power monitoring
+            
+        Raises:
+            ValueError: If device_path is invalid
+            SecurityError: If device access is restricted
         """
-        self.device_path = device_path
+        self.device_path = self._validate_device_path(device_path)
         self.enable_power_monitoring = enable_power_monitoring
         self._device = None
-        self._logger = logging.getLogger(__name__)
+        self._logger = self._setup_secure_logging()
         self._power_monitor = None
         self._system_monitor = SystemMonitor()
+        self._security_context = SecurityContext()
+        self._input_validator = InputValidator()
         
-        # Validate device availability
+        # Performance optimizations
+        self._result_cache = AdaptiveCache(max_size=1000, ttl_seconds=3600)
+        self._model_pool = ResourcePool(factory=self._create_model_instance, max_size=10)
+        self._perf_monitor = PerformanceMonitor()
+        self._auto_scaler = AutoScaler(min_workers=2, max_workers=16)
+        
+        # Validate device availability and security
         if not self._is_device_available():
-            self._logger.warning(f"TPU device not found at {device_path}, using simulation mode")
+            self._logger.warning(f"TPU device not found at {self._sanitize_path(device_path)}, using simulation mode")
             self._simulation_mode = True
         else:
             self._simulation_mode = False
+    
+    def _sanitize_error(self, error: Exception) -> str:
+        """Sanitize error messages for safe logging."""
+        return DataSanitizer.sanitize_error_message(error)
+    
+    def _sanitize_path(self, path: str) -> str:
+        """Sanitize paths for safe logging."""
+        return DataSanitizer.sanitize_path_for_logging(path)
+    
+    def _generate_cache_key(self, model, input_shape: tuple, iterations: int, batch_size: int) -> str:
+        """Generate cache key for benchmark results."""
+        import hashlib
+        
+        # Create hash of key parameters using secure SHA-256
+        key_data = f"{str(model)}_{input_shape}_{iterations}_{batch_size}"
+        return hashlib.sha256(key_data.encode()).hexdigest()[:16]  # Use first 16 chars for cache key
+    
+    def _create_model_instance(self):
+        """Factory method for model instances (placeholder)."""
+        # This would create actual model instances in real implementation
+        return None
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get comprehensive performance statistics."""
+        return {
+            'cache_stats': self._result_cache.get_stats(),
+            'current_workers': self._auto_scaler.get_current_workers(),
+            'system_info': self.get_system_info()
+        }
     
     def _is_device_available(self) -> bool:
         """Check if TPU device is available."""
@@ -147,9 +195,24 @@ class TPUv5Benchmark:
             measure_power: Override power measurement setting
             confidence_level: Statistical confidence level
             
-        Returns:
-            BenchmarkResults with comprehensive performance metrics
+        Raises:
+            ValueError: If input parameters are invalid
+            SecurityError: If security validation fails
         """
+        # Validate all inputs
+        input_shape = self._input_validator.validate_shape_input(input_shape)
+        iterations = int(self._input_validator.validate_numeric_input(
+            iterations, min_val=1, max_val=1000000, param_name="iterations"))
+        warmup = int(self._input_validator.validate_numeric_input(
+            warmup, min_val=0, max_val=10000, param_name="warmup"))
+        batch_size = int(self._input_validator.validate_numeric_input(
+            batch_size, min_val=1, max_val=1000, param_name="batch_size"))
+        confidence_level = self._input_validator.validate_numeric_input(
+            confidence_level, min_val=0.5, max_val=0.99, param_name="confidence_level")
+        
+        if model is None:
+            raise ValueError("Model cannot be None")
+        
         self._logger.info(f"Starting benchmark: {iterations} iterations, {warmup} warmup")
         
         measure_power = measure_power if measure_power is not None else self.enable_power_monitoring
@@ -159,11 +222,22 @@ class TPUv5Benchmark:
         latencies = []
         success_count = 0
         
-        # Generate test input data
-        input_data = self._generate_input_data(input_shape, batch_size)
+        # Generate test input data with validation
+        try:
+            input_data = self._generate_input_data(input_shape, batch_size)
+        except Exception as e:
+            raise ValueError(f"Failed to generate input data: {self._sanitize_error(e)}")
         
-        # Start system monitoring
+        # Start comprehensive monitoring
         self._system_monitor.start_monitoring()
+        self._perf_monitor.start_monitoring()
+        
+        # Check cache for previous results
+        cache_key = self._generate_cache_key(model, input_shape, iterations, batch_size)
+        cached_result = self._result_cache.get(cache_key)
+        if cached_result and confidence_level < 0.9:  # Use cache for lower confidence levels
+            self._logger.info("Using cached benchmark results")
+            return cached_result
         
         # Start power monitoring if enabled
         if measure_power and not self._simulation_mode:
@@ -173,8 +247,10 @@ class TPUv5Benchmark:
             power_thread.start()
         
         try:
-            # Warmup phase
+            # Warmup phase with error tracking
             self._logger.info(f"Warmup phase: {warmup} iterations")
+            warmup_errors = 0
+            
             for i in range(warmup):
                 try:
                     start_time = time.perf_counter()
@@ -184,15 +260,21 @@ class TPUv5Benchmark:
                     if result is not None:
                         success_count += 1
                 except Exception as e:
-                    self._logger.warning(f"Warmup iteration {i} failed: {e}")
+                    warmup_errors += 1
+                    self._logger.warning(f"Warmup iteration {i} failed: {self._sanitize_error(e)}")
+                    
+                    # Fail fast if too many errors
+                    if warmup_errors > warmup * 0.5:  # More than 50% failure rate
+                        raise RuntimeError(f"Warmup phase failed with {warmup_errors} errors")
             
             # Reset counters for actual benchmark
             success_count = 0
             latencies.clear()
             
-            # Benchmark phase
+            # Benchmark phase with comprehensive error handling
             self._logger.info(f"Benchmark phase: {iterations} iterations")
             benchmark_start = time.perf_counter()
+            benchmark_errors = 0
             
             for i in range(iterations):
                 try:
@@ -202,15 +284,26 @@ class TPUv5Benchmark:
                     
                     if result is not None:
                         latency_ms = (end_time - start_time) * 1000  # Convert to milliseconds
-                        latencies.append(latency_ms)
-                        success_count += 1
+                        
+                        # Validate latency is reasonable (prevent outliers from corrupting results)
+                        if 0.01 <= latency_ms <= 10000:  # 0.01ms to 10s reasonable range
+                            latencies.append(latency_ms)
+                            success_count += 1
+                        else:
+                            self._logger.warning(f"Unrealistic latency detected: {latency_ms:.2f}ms")
                     
                     # Small delay to prevent overwhelming the TPU
                     if i % 100 == 0 and i > 0:
                         time.sleep(0.001)  # 1ms pause every 100 iterations
                         
                 except Exception as e:
-                    self._logger.warning(f"Iteration {i} failed: {e}")
+                    benchmark_errors += 1
+                    self._logger.warning(f"Iteration {i} failed: {self._sanitize_error(e)}")
+                    
+                    # Fail fast if too many consecutive errors
+                    if benchmark_errors > iterations * 0.1:  # More than 10% failure rate
+                        self._logger.error(f"Benchmark failing with {benchmark_errors} errors, aborting")
+                        break
             
             benchmark_end = time.perf_counter()
             total_duration = benchmark_end - benchmark_start
@@ -221,9 +314,10 @@ class TPUv5Benchmark:
                 self._stop_power_monitoring()
             
             system_metrics = self._system_monitor.stop_monitoring()
+            perf_metrics = self._perf_monitor.stop_monitoring()
         
         # Calculate comprehensive metrics
-        return self._calculate_results(
+        results = self._calculate_results(
             latencies=latencies,
             power_samples=power_samples if measure_power else [],
             total_duration=total_duration,
@@ -231,21 +325,97 @@ class TPUv5Benchmark:
             warmup_iterations=warmup,
             success_count=success_count,
             system_metrics=system_metrics,
-            confidence_level=confidence_level
+            confidence_level=confidence_level,
+            perf_metrics=perf_metrics
         )
+        
+        # Cache results for future use
+        if results.success_rate > 0.9:  # Only cache successful runs
+            self._result_cache.put(cache_key, results)
+        
+        return results
     
     def _generate_input_data(self, input_shape: tuple, batch_size: int) -> np.ndarray:
-        """Generate realistic test input data."""
-        # Create input shape with batch dimension
-        full_shape = (batch_size,) + input_shape[1:] if len(input_shape) > 1 else (batch_size, input_shape[0])
+        """Generate realistic test input data with validation.
         
-        # Generate data based on typical input ranges
-        if len(input_shape) >= 3:  # Image-like data
-            # Generate normalized image data [0, 1]
-            return np.random.uniform(0, 1, full_shape).astype(np.float32)
-        else:  # Vector data
-            # Generate normalized vector data [-1, 1]
-            return np.random.uniform(-1, 1, full_shape).astype(np.float32)
+        Args:
+            input_shape: Input tensor shape
+            batch_size: Batch size
+            
+        Returns:
+            Generated input data array
+            
+        Raises:
+            ValueError: If shapes are invalid
+        """
+        # Validate inputs
+        if batch_size <= 0 or batch_size > 1000:
+            raise ValueError(f"Invalid batch size: {batch_size}")
+        
+        # Create input shape with batch dimension
+        try:
+            full_shape = (batch_size,) + input_shape[1:] if len(input_shape) > 1 else (batch_size, input_shape[0])
+            
+            # Validate total size to prevent memory issues
+            total_elements = np.prod(full_shape)
+            if total_elements > 100_000_000:  # 100M elements max
+                raise ValueError(f"Input size too large: {total_elements} elements")
+            
+            # Generate data based on typical input ranges
+            if len(input_shape) >= 3:  # Image-like data
+                # Generate normalized image data [0, 1]
+                data = np.random.uniform(0, 1, full_shape).astype(np.float32)
+            else:  # Vector data
+                # Generate normalized vector data [-1, 1]
+                data = np.random.uniform(-1, 1, full_shape).astype(np.float32)
+            
+            return data
+            
+        except Exception as e:
+            raise ValueError(f"Failed to generate input data: {str(e)}")
+    
+    def _validate_device_path(self, device_path: str) -> str:
+        """Validate and sanitize TPU device path.
+        
+        Args:
+            device_path: Path to TPU device
+            
+        Returns:
+            Validated device path
+            
+        Raises:
+            ValueError: If path is invalid or unsafe
+        """
+        if not isinstance(device_path, str):
+            raise ValueError("Device path must be a string")
+        
+        # Sanitize path to prevent injection attacks
+        device_path = device_path.strip()
+        
+        # Validate path format for TPU devices
+        valid_patterns = [
+            r'^/dev/apex_\d+$',  # Standard TPU v5 device
+            r'^/dev/tpu\d+$',    # Alternative TPU device naming
+            r'^/dev/mock_tpu$'   # Mock device for testing
+        ]
+        
+        if not any(re.match(pattern, device_path) for pattern in valid_patterns):
+            raise ValueError(f"Invalid TPU device path format: {device_path}")
+            
+        return device_path
+    
+    def _setup_secure_logging(self) -> logging.Logger:
+        """Setup secure logging with PII protection."""
+        logger = logging.getLogger(__name__)
+        logger.setLevel(logging.INFO)
+        
+        # Add security filter to prevent logging sensitive data
+        security_filter = SecurityLoggingFilter()
+        
+        for handler in logger.handlers:
+            handler.addFilter(security_filter)
+            
+        return logger
     
     def _start_power_monitoring(self):
         """Start power monitoring subsystem."""
@@ -289,7 +459,8 @@ class TPUv5Benchmark:
         warmup_iterations: int,
         success_count: int,
         system_metrics: Dict[str, Any],
-        confidence_level: float
+        confidence_level: float,
+        perf_metrics: Optional[Dict[str, Any]] = None
     ) -> BenchmarkResults:
         """Calculate comprehensive benchmark results with statistical analysis."""
         

@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edge-tpu-benchmark
+  labels:
+    name: edge-tpu-benchmark
+    environment: production
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-tpu-benchmark-api
+  namespace: edge-tpu-benchmark
+  labels:
+    app: edge-tpu-benchmark-api
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: edge-tpu-benchmark-api
+  template:
+    metadata:
+      labels:
+        app: edge-tpu-benchmark-api
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: benchmark-api
+        image: ghcr.io/terragonlabs/edge-tpu-v5-benchmark:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: ENV
+          value: "production"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: BENCHMARK_MAX_CONCURRENT
+          value: "50"
+        - name: BENCHMARK_TIMEOUT
+          value: "300"
+        - name: CACHE_TTL
+          value: "3600"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: COMPLIANCE_MODE
+          value: "strict"
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: url
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "4Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: data-volume
+          mountPath: /app/data
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: data-volume
+        persistentVolumeClaim:
+          claimName: benchmark-data-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: benchmark-logs-pvc
+      - name: config-volume
+        configMap:
+          name: benchmark-config
+      nodeSelector:
+        kubernetes.io/arch: amd64
+      tolerations:
+      - key: "node-type"
+        operator: "Equal"
+        value: "tpu"
+        effect: "NoSchedule"
