@@ -20,6 +20,7 @@ from .config import (
 )
 from .compiler import CompilerAnalyzer, TPUv5Optimizer, CompilerAnalysis
 from .converter import ONNXToTPUv5, TensorFlowToTPUv5, PyTorchToTPUv5, prepare_for_tpu_v5
+from .security import SecurityContext, InputValidator, DataSanitizer, SecurityLoggingFilter
 from .quantum_planner import (
     QuantumTaskPlanner,
     QuantumTask,
@@ -113,6 +114,12 @@ __all__ = [
     "TensorFlowToTPUv5", 
     "PyTorchToTPUv5",
     "prepare_for_tpu_v5",
+    
+    # Security utilities
+    "SecurityContext",
+    "InputValidator",
+    "DataSanitizer",
+    "SecurityLoggingFilter",
     
     # Quantum task planning
     "QuantumTaskPlanner",
