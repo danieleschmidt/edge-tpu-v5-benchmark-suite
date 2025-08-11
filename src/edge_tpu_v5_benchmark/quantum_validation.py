@@ -1,20 +1,44 @@
 """Quantum Task Validation and Error Handling
 
-Comprehensive validation system for quantum tasks with TPU-specific checks.
+Comprehensive validation system for quantum tasks with TPU-specific checks,
+enhanced with circuit breakers, retry mechanisms, and structured logging.
 """
 
 import logging
 import traceback
-from typing import Dict, List, Set, Optional, Any, Tuple
-from dataclasses import dataclass
+import threading
+import asyncio
+from typing import Dict, List, Set, Optional, Any, Tuple, Callable
+from dataclasses import dataclass, field
 from enum import Enum
 import re
 import time
+from collections import defaultdict, deque
 
 from .quantum_planner import QuantumTask, QuantumResource, QuantumState
-from .exceptions import BenchmarkError
+from .exceptions import (
+    BenchmarkError, QuantumError, QuantumValidationError, 
+    QuantumCircuitBreakerError, QuantumRetryExhaustedError,
+    ErrorContext, handle_quantum_error, quantum_operation,
+    validate_input, CircuitBreaker, CircuitBreakerConfig,
+    RetryManager, RetryConfig,
+    ErrorHandlingContext, AsyncErrorHandlingContext
+)
+from .security import InputValidator, DataSanitizer
 
+# Configure structured logging for validation
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Create formatter for structured logging
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - [%(component)s:%(operation)s] - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 
 class ValidationSeverity(Enum):
@@ -27,13 +51,17 @@ class ValidationSeverity(Enum):
 
 @dataclass
 class ValidationIssue:
-    """Individual validation issue"""
+    """Individual validation issue with enhanced metadata"""
     severity: ValidationSeverity
     code: str
     message: str
     task_id: Optional[str] = None
     resource: Optional[str] = None
     suggestion: Optional[str] = None
+    timestamp: float = field(default_factory=time.time)
+    rule_name: Optional[str] = None
+    context_data: Dict[str, Any] = field(default_factory=dict)
+    recovery_actions: List[str] = field(default_factory=list)
     
     def __str__(self) -> str:
         parts = [f"[{self.severity.value.upper()}] {self.code}: {self.message}"]
@@ -41,26 +69,46 @@ class ValidationIssue:
             parts.append(f"Task: {self.task_id}")
         if self.resource:
             parts.append(f"Resource: {self.resource}")
+        if self.rule_name:
+            parts.append(f"Rule: {self.rule_name}")
         if self.suggestion:
             parts.append(f"Suggestion: {self.suggestion}")
         return " | ".join(parts)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            "severity": self.severity.value,
+            "code": self.code,
+            "message": self.message,
+            "task_id": self.task_id,
+            "resource": self.resource,
+            "suggestion": self.suggestion,
+            "timestamp": self.timestamp,
+            "rule_name": self.rule_name,
+            "context_data": self.context_data,
+            "recovery_actions": self.recovery_actions
+        }
 
 
 @dataclass 
 class ValidationReport:
-    """Comprehensive validation report"""
+    """Comprehensive validation report with enhanced analytics"""
     total_issues: int = 0
     critical_issues: int = 0
     error_issues: int = 0
     warning_issues: int = 0
     info_issues: int = 0
-    issues: List[ValidationIssue] = None
+    issues: List[ValidationIssue] = field(default_factory=list)
     validation_time: float = 0.0
     is_valid: bool = True
-    
-    def __post_init__(self):
-        if self.issues is None:
-            self.issues = []
+    validation_id: str = ""
+    timestamp: float = field(default_factory=time.time)
+    rules_executed: int = 0
+    rules_failed: int = 0
+    context: Optional[Dict[str, Any]] = None
+    performance_metrics: Dict[str, float] = field(default_factory=dict)
+    recovery_suggestions: List[str] = field(default_factory=list)
     
     def add_issue(self, issue: ValidationIssue) -> None:
         """Add validation issue and update counters"""
@@ -94,96 +142,486 @@ class ValidationReport:
 
 
 class QuantumTaskValidator:
-    """Comprehensive quantum task validation system"""
+    """Comprehensive quantum task validation system with resilience patterns"""
     
-    def __init__(self):
+    def __init__(self, enable_circuit_breaker: bool = True, max_validation_time: float = 30.0):
         self.validation_rules = {}
+        self._lock = threading.RLock()
+        self.validation_history = deque(maxlen=1000)
+        self.rule_performance = defaultdict(lambda: {"total_time": 0.0, "executions": 0, "failures": 0})
+        self.max_validation_time = max_validation_time
+        
+        # Circuit breaker for validation system resilience
+        if enable_circuit_breaker:
+            cb_config = CircuitBreakerConfig(
+                failure_threshold=5,
+                success_threshold=3,
+                timeout=60.0,
+                expected_exception=Exception
+            )
+            self.circuit_breaker = CircuitBreaker(cb_config)
+        else:
+            self.circuit_breaker = None
+        
+        # Retry manager for transient failures
+        retry_config = RetryConfig(
+            max_attempts=2,
+            base_delay=0.1,
+            max_delay=1.0,
+            exponential_base=2.0,
+            retryable_exceptions=(QuantumValidationError,)
+        )
+        self.retry_manager = RetryManager(retry_config)
+        
         self._register_default_rules()
+        
+        logger.info(
+            "Quantum task validator initialized",
+            extra={"component": "quantum_validator", "operation": "__init__",
+                  "circuit_breaker_enabled": enable_circuit_breaker,
+                  "max_validation_time": max_validation_time}
+        )
     
     def _register_default_rules(self) -> None:
-        """Register default validation rules"""
+        """Register default validation rules with metadata"""
         self.validation_rules = {
-            "task_id_format": self._validate_task_id_format,
-            "task_dependencies": self._validate_task_dependencies,
-            "resource_requirements": self._validate_resource_requirements,
-            "quantum_coherence": self._validate_quantum_coherence,
-            "tpu_compatibility": self._validate_tpu_compatibility,
-            "execution_safety": self._validate_execution_safety,
-            "decoherence_limits": self._validate_decoherence_limits,
-            "entanglement_validity": self._validate_entanglement_validity,
-            "priority_ranges": self._validate_priority_ranges,
-            "complexity_sanity": self._validate_complexity_sanity
+            "task_id_format": {
+                "function": self._validate_task_id_format,
+                "description": "Validate task ID format and constraints",
+                "critical": True,
+                "timeout": 1.0
+            },
+            "task_dependencies": {
+                "function": self._validate_task_dependencies,
+                "description": "Validate task dependency structure",
+                "critical": True,
+                "timeout": 2.0
+            },
+            "resource_requirements": {
+                "function": self._validate_resource_requirements,
+                "description": "Validate resource requirement specifications",
+                "critical": True,
+                "timeout": 1.0
+            },
+            "quantum_coherence": {
+                "function": self._validate_quantum_coherence,
+                "description": "Validate quantum coherence properties",
+                "critical": False,
+                "timeout": 1.0
+            },
+            "tpu_compatibility": {
+                "function": self._validate_tpu_compatibility,
+                "description": "Validate TPU-specific compatibility requirements",
+                "critical": False,
+                "timeout": 2.0
+            },
+            "execution_safety": {
+                "function": self._validate_execution_safety,
+                "description": "Validate execution safety constraints",
+                "critical": True,
+                "timeout": 1.0
+            },
+            "decoherence_limits": {
+                "function": self._validate_decoherence_limits,
+                "description": "Validate quantum decoherence parameters",
+                "critical": False,
+                "timeout": 1.0
+            },
+            "entanglement_validity": {
+                "function": self._validate_entanglement_validity,
+                "description": "Validate quantum entanglement relationships",
+                "critical": False,
+                "timeout": 1.0
+            },
+            "priority_ranges": {
+                "function": self._validate_priority_ranges,
+                "description": "Validate priority value ranges",
+                "critical": False,
+                "timeout": 0.5
+            },
+            "complexity_sanity": {
+                "function": self._validate_complexity_sanity,
+                "description": "Validate complexity value sanity checks",
+                "critical": False,
+                "timeout": 0.5
+            }
         }
     
+    @validate_input(
+        lambda self, task, available_resources=None: hasattr(task, 'id'),
+        "Invalid task object for validation"
+    )
+    @quantum_operation("validate_task", retry_attempts=2, timeout_seconds=30.0)
     def validate_task(self, task: QuantumTask, available_resources: Optional[Dict[str, QuantumResource]] = None) -> ValidationReport:
-        """Validate individual quantum task"""
-        start_time = time.time()
-        report = ValidationReport()
+        """Validate individual quantum task with comprehensive error handling and resilience"""
+        validation_start = time.time()
+        task_id = getattr(task, 'id', 'unknown')
         
+        # Initialize report with enhanced metadata
+        report = ValidationReport(
+            validation_id=f"val_{int(validation_start)}_{task_id}",
+            timestamp=validation_start
+        )
+        
+        with ErrorHandlingContext(
+            component="quantum_validator",
+            operation="validate_task",
+            task_id=task_id,
+            suppress_exceptions=True
+        ) as error_ctx:
+            
+            try:
+                with self._lock:
+                    logger.info(
+                        f"Starting validation for task {task_id}",
+                        extra={"component": "quantum_validator", "operation": "validate_task",
+                              "task_id": task_id, "validation_id": report.validation_id}
+                    )
+                    
+                    # Validate task basic structure
+                    if not self._validate_task_structure(task, report):
+                        logger.error(
+                            f"Task {task_id} failed basic structure validation",
+                            extra={"component": "quantum_validator", "operation": "validate_task",
+                                  "task_id": task_id}
+                        )
+                        report.validation_time = time.time() - validation_start
+                        return report
+                    
+                    # Apply circuit breaker if enabled
+                    validation_func = self._execute_validation_rules
+                    if self.circuit_breaker:
+                        validation_func = self.circuit_breaker(validation_func)
+                    
+                    # Execute validation with timeout
+                    try:
+                        validation_func(task, available_resources, report)
+                    except QuantumCircuitBreakerError as e:
+                        logger.error(
+                            f"Validation circuit breaker open for task {task_id}: {e}",
+                            extra={"component": "quantum_validator", "operation": "validate_task",
+                                  "task_id": task_id}
+                        )
+                        error_issue = ValidationIssue(
+                            severity=ValidationSeverity.CRITICAL,
+                            code="VALIDATION_CIRCUIT_BREAKER_OPEN",
+                            message=f"Validation circuit breaker is open: {str(e)}",
+                            task_id=task_id,
+                            rule_name="circuit_breaker",
+                            suggestion="Wait for circuit breaker to reset, check system health",
+                            recovery_actions=["Wait and retry", "Check validation system health"]
+                        )
+                        report.add_issue(error_issue)
+                    
+                    # Calculate final metrics
+                    report.validation_time = time.time() - validation_start
+                    report.performance_metrics = {
+                        "total_validation_time": report.validation_time,
+                        "rules_per_second": report.rules_executed / max(report.validation_time, 0.001),
+                        "issues_per_rule": report.total_issues / max(report.rules_executed, 1)
+                    }
+                    
+                    # Generate recovery suggestions
+                    if report.has_blocking_issues():
+                        report.recovery_suggestions = self._generate_recovery_suggestions(report)
+                    
+                    # Store validation history
+                    self.validation_history.append({
+                        "validation_id": report.validation_id,
+                        "task_id": task_id,
+                        "timestamp": report.timestamp,
+                        "total_issues": report.total_issues,
+                        "validation_time": report.validation_time,
+                        "is_valid": report.is_valid
+                    })
+                    
+                    logger.info(
+                        f"Validation completed for task {task_id}: "
+                        f"{report.total_issues} issues ({report.critical_issues} critical, {report.error_issues} errors)",
+                        extra={"component": "quantum_validator", "operation": "validate_task",
+                              "task_id": task_id, "validation_time": report.validation_time,
+                              "total_issues": report.total_issues, "is_valid": report.is_valid}
+                    )
+                    
+                    return report
+                    
+            except Exception as e:
+                # Handle unexpected validation failures
+                logger.critical(
+                    f"Unexpected validation failure for task {task_id}: {e}",
+                    extra={"component": "quantum_validator", "operation": "validate_task",
+                          "task_id": task_id, "error": str(e)}
+                )
+                
+                critical_issue = ValidationIssue(
+                    severity=ValidationSeverity.CRITICAL,
+                    code="VALIDATION_SYSTEM_FAILURE",
+                    message=f"Critical validation system failure: {str(e)}",
+                    task_id=task_id,
+                    rule_name="system",
+                    suggestion="Check task structure and validation system integrity",
+                    recovery_actions=["Verify task object", "Check validation system", "Report bug"]
+                )
+                report.add_issue(critical_issue)
+                report.rules_failed += 1
+                
+                report.validation_time = time.time() - validation_start
+                return report
+    
+    def _validate_task_structure(self, task: QuantumTask, report: ValidationReport) -> bool:
+        """Validate basic task structure before running rules"""
         try:
-            # Run all validation rules
-            for rule_name, rule_func in self.validation_rules.items():
+            required_attrs = ['id', 'name', 'state']
+            for attr in required_attrs:
+                if not hasattr(task, attr):
+                    issue = ValidationIssue(
+                        severity=ValidationSeverity.CRITICAL,
+                        code="MISSING_REQUIRED_ATTRIBUTE",
+                        message=f"Task missing required attribute: {attr}",
+                        task_id=getattr(task, 'id', 'unknown'),
+                        rule_name="structure_validation",
+                        suggestion=f"Ensure task has {attr} attribute",
+                        recovery_actions=[f"Add {attr} attribute to task"]
+                    )
+                    report.add_issue(issue)
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(
+                f"Error in task structure validation: {e}",
+                extra={"component": "quantum_validator", "operation": "_validate_task_structure"}
+            )
+            return False
+    
+    def _execute_validation_rules(self, task: QuantumTask, available_resources: Optional[Dict[str, QuantumResource]], report: ValidationReport) -> None:
+        """Execute all validation rules with individual error handling"""
+        for rule_name, rule_config in self.validation_rules.items():
+            rule_start = time.time()
+            report.rules_executed += 1
+            
+            try:
+                # Apply timeout to individual rules
+                rule_func = rule_config["function"]
+                rule_timeout = rule_config.get("timeout", 5.0)
+                
+                logger.debug(
+                    f"Executing validation rule {rule_name} for task {task.id}",
+                    extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
+                          "rule_name": rule_name, "task_id": task.id}
+                )
+                
+                # Execute rule with error handling
+                issues = []
                 try:
                     issues = rule_func(task, available_resources)
-                    for issue in issues:
-                        report.add_issue(issue)
-                except Exception as e:
-                    # Validation rule failure
-                    error_issue = ValidationIssue(
-                        severity=ValidationSeverity.ERROR,
-                        code=f"VALIDATION_RULE_FAILED_{rule_name.upper()}",
-                        message=f"Validation rule '{rule_name}' failed: {str(e)}",
-                        task_id=task.id,
-                        suggestion="Check validation rule implementation"
+                    if not isinstance(issues, list):
+                        issues = []
+                        logger.warning(
+                            f"Validation rule {rule_name} returned non-list result",
+                            extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
+                                  "rule_name": rule_name}
+                        )
+                except Exception as rule_error:
+                    logger.error(
+                        f"Validation rule {rule_name} failed for task {task.id}: {rule_error}",
+                        extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
+                              "rule_name": rule_name, "task_id": task.id, "error": str(rule_error)}
                     )
-                    report.add_issue(error_issue)
-                    logger.error(f"Validation rule {rule_name} failed for task {task.id}: {e}")
-        
-        except Exception as e:
-            # Critical validation failure
-            critical_issue = ValidationIssue(
-                severity=ValidationSeverity.CRITICAL,
-                code="VALIDATION_SYSTEM_FAILURE",
-                message=f"Critical validation system failure: {str(e)}",
-                task_id=task.id,
-                suggestion="Check task structure and validation system"
-            )
-            report.add_issue(critical_issue)
-            logger.critical(f"Critical validation failure for task {task.id}: {e}")
-        
-        report.validation_time = time.time() - start_time
-        return report
+                    
+                    # Create issue for rule failure
+                    rule_failure_issue = ValidationIssue(
+                        severity=ValidationSeverity.ERROR if rule_config.get("critical", False) else ValidationSeverity.WARNING,
+                        code=f"VALIDATION_RULE_FAILED_{rule_name.upper()}",
+                        message=f"Validation rule '{rule_name}' failed: {str(rule_error)}",
+                        task_id=task.id,
+                        rule_name=rule_name,
+                        suggestion=f"Check task data for rule '{rule_name}' requirements",
+                        recovery_actions=["Verify task configuration", "Check rule implementation"]
+                    )
+                    issues = [rule_failure_issue]
+                    report.rules_failed += 1
+                
+                # Add issues to report
+                for issue in issues:
+                    if isinstance(issue, ValidationIssue):
+                        issue.rule_name = rule_name  # Ensure rule name is set
+                        report.add_issue(issue)
+                
+                # Update rule performance metrics
+                rule_time = time.time() - rule_start
+                self.rule_performance[rule_name]["total_time"] += rule_time
+                self.rule_performance[rule_name]["executions"] += 1
+                
+                if len(issues) > 0 and any(issue.severity in [ValidationSeverity.CRITICAL, ValidationSeverity.ERROR] for issue in issues):
+                    self.rule_performance[rule_name]["failures"] += 1
+                
+                logger.debug(
+                    f"Validation rule {rule_name} completed in {rule_time:.3f}s with {len(issues)} issues",
+                    extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
+                          "rule_name": rule_name, "rule_time": rule_time, "issues": len(issues)}
+                )
+                
+            except Exception as e:
+                # Rule execution completely failed
+                logger.error(
+                    f"Critical error executing validation rule {rule_name}: {e}",
+                    extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
+                          "rule_name": rule_name, "error": str(e)}
+                )
+                
+                critical_issue = ValidationIssue(
+                    severity=ValidationSeverity.CRITICAL,
+                    code="VALIDATION_RULE_SYSTEM_ERROR",
+                    message=f"Critical error in validation rule '{rule_name}': {str(e)}",
+                    task_id=task.id,
+                    rule_name=rule_name,
+                    suggestion="Check validation system integrity",
+                    recovery_actions=["Report validation system bug", "Skip this validation"]
+                )
+                report.add_issue(critical_issue)
+                report.rules_failed += 1
     
+    def _generate_recovery_suggestions(self, report: ValidationReport) -> List[str]:
+        """Generate recovery suggestions based on validation issues"""
+        suggestions = []
+        
+        # Categorize issues
+        critical_count = report.critical_issues
+        error_count = report.error_issues
+        
+        if critical_count > 0:
+            suggestions.append(f"Address {critical_count} critical issues before proceeding")
+            suggestions.append("Critical issues prevent task execution")
+        
+        if error_count > 0:
+            suggestions.append(f"Resolve {error_count} error-level issues")
+        
+        # Rule-specific suggestions
+        rule_issues = defaultdict(int)
+        for issue in report.issues:
+            if issue.rule_name:
+                rule_issues[issue.rule_name] += 1
+        
+        if len(rule_issues) > 3:
+            suggestions.append("Multiple validation rules failed - review task configuration")
+        
+        # Add specific recovery actions from issues
+        for issue in report.issues:
+            if issue.recovery_actions:
+                suggestions.extend(issue.recovery_actions[:2])  # Limit to prevent spam
+        
+        return list(set(suggestions))  # Remove duplicates
+    
+    @validate_input(
+        lambda self, task, resources=None: hasattr(task, 'id'),
+        "Task missing ID attribute"
+    )
     def _validate_task_id_format(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
-        """Validate task ID format and uniqueness"""
+        """Validate task ID format and uniqueness with comprehensive checks"""
         issues = []
         
-        # Check ID format
-        if not task.id:
-            issues.append(ValidationIssue(
-                severity=ValidationSeverity.CRITICAL,
-                code="TASK_ID_EMPTY",
-                message="Task ID cannot be empty",
-                task_id=task.id,
-                suggestion="Provide a non-empty task ID"
-            ))
-        elif not re.match(r'^[a-zA-Z0-9_\-]+$', task.id):
+        try:
+            task_id = getattr(task, 'id', None)
+            
+            # Check ID existence
+            if not task_id:
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.CRITICAL,
+                    code="TASK_ID_EMPTY",
+                    message="Task ID cannot be empty",
+                    task_id=str(task_id),
+                    suggestion="Provide a non-empty task ID",
+                    recovery_actions=["Set a valid task ID", "Generate unique ID"]
+                ))
+                return issues
+            
+            # Sanitize and validate ID
+            if not isinstance(task_id, str):
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    code="TASK_ID_INVALID_TYPE",
+                    message=f"Task ID must be string, got {type(task_id).__name__}",
+                    task_id=str(task_id),
+                    suggestion="Ensure task ID is a string",
+                    recovery_actions=["Convert ID to string", "Use string ID"]
+                ))
+                return issues
+            
+            # Check ID format with enhanced pattern
+            if not re.match(r'^[a-zA-Z][a-zA-Z0-9_\-]*$', task_id):
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    code="TASK_ID_INVALID_FORMAT",
+                    message="Task ID must start with letter and contain only alphanumeric, underscore, hyphen",
+                    task_id=task_id,
+                    suggestion="Use format: letter followed by alphanumeric, underscore, or hyphen",
+                    recovery_actions=["Fix ID format", "Regenerate valid ID"],
+                    context_data={"current_id": task_id, "pattern": "^[a-zA-Z][a-zA-Z0-9_\\-]*$"}
+                ))
+            
+            # Check length constraints
+            if len(task_id) < 1:
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.CRITICAL,
+                    code="TASK_ID_TOO_SHORT",
+                    message="Task ID cannot be empty",
+                    task_id=task_id,
+                    suggestion="Provide at least 1 character",
+                    recovery_actions=["Add content to ID"]
+                ))
+            elif len(task_id) > 128:
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.WARNING,
+                    code="TASK_ID_TOO_LONG",
+                    message=f"Task ID is {len(task_id)} characters, longer than recommended 128",
+                    task_id=task_id,
+                    suggestion="Consider shorter, more concise task IDs",
+                    recovery_actions=["Shorten ID", "Use abbreviations"],
+                    context_data={"current_length": len(task_id), "max_recommended": 128}
+                ))
+            
+            # Check for reserved patterns
+            reserved_patterns = [r'^test_', r'^temp_', r'^debug_']
+            for pattern in reserved_patterns:
+                if re.match(pattern, task_id.lower()):
+                    issues.append(ValidationIssue(
+                        severity=ValidationSeverity.WARNING,
+                        code="TASK_ID_RESERVED_PATTERN",
+                        message=f"Task ID uses reserved pattern: {pattern}",
+                        task_id=task_id,
+                        suggestion="Avoid reserved prefixes for production tasks",
+                        recovery_actions=["Use different prefix", "Rename task"]
+                    ))
+                    break
+            
+            # Check for potential security issues
+            dangerous_chars = ['<', '>', '"', "'", '&', ';', '|', '`']
+            found_dangerous = [char for char in dangerous_chars if char in task_id]
+            if found_dangerous:
+                issues.append(ValidationIssue(
+                    severity=ValidationSeverity.ERROR,
+                    code="TASK_ID_SECURITY_RISK",
+                    message=f"Task ID contains potentially dangerous characters: {found_dangerous}",
+                    task_id=task_id,
+                    suggestion="Remove special characters that could cause security issues",
+                    recovery_actions=["Sanitize ID", "Use safe characters only"],
+                    context_data={"dangerous_chars": found_dangerous}
+                ))
+        
+        except Exception as e:
+            logger.error(
+                f"Error in task ID format validation: {e}",
+                extra={"component": "quantum_validator", "operation": "_validate_task_id_format"}
+            )
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.ERROR,
-                code="TASK_ID_INVALID_FORMAT",
-                message="Task ID contains invalid characters",
-                task_id=task.id,
-                suggestion="Use only alphanumeric characters, underscores, and hyphens"
-            ))
-        
-        # Check length
-        if len(task.id) > 128:
-            issues.append(ValidationIssue(
-                severity=ValidationSeverity.WARNING,
-                code="TASK_ID_TOO_LONG",
-                message="Task ID is longer than recommended 128 characters",
-                task_id=task.id,
-                suggestion="Consider shorter, more concise task IDs"
+                code="TASK_ID_VALIDATION_ERROR",
+                message=f"Error validating task ID: {str(e)}",
+                task_id=getattr(task, 'id', 'unknown'),
+                suggestion="Check task ID validation logic",
+                recovery_actions=["Verify task object", "Check validation system"]
             ))
         
         return issues

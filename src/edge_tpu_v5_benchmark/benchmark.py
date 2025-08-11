@@ -19,7 +19,7 @@ import psutil
 from typing import Set
 import re
 from .security import SecurityContext, InputValidator, SecurityLoggingFilter, DataSanitizer
-from .performance import AdaptiveCache, ResourcePool, PerformanceMonitor, AutoScaler
+from .performance import AdaptiveCache, AdvancedResourcePool, PerformanceMonitor, AutoScaler
 
 
 @dataclass
@@ -108,7 +108,7 @@ class TPUv5Benchmark:
         
         # Performance optimizations
         self._result_cache = AdaptiveCache(max_size=1000, ttl_seconds=3600)
-        self._model_pool = ResourcePool(factory=self._create_model_instance, max_size=10)
+        self._model_pool = AdvancedResourcePool(factory=self._create_model_instance, max_size=10)
         self._perf_monitor = PerformanceMonitor()
         self._auto_scaler = AutoScaler(min_workers=2, max_workers=16)
         

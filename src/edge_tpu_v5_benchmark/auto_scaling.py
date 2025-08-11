@@ -660,14 +660,257 @@ class LoadBalancer:
         }
 
 
+# Enhanced classes for ML-driven scaling
+class AnomalyDetector:
+    """Statistical anomaly detector for system metrics."""
+    
+    def __init__(self, window_size: int = 50, sensitivity: float = 2.5):
+        self.window_size = window_size
+        self.sensitivity = sensitivity
+        self.metric_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=window_size))
+    
+    def calculate_anomaly_score(self, metrics: Dict[str, Any]) -> float:
+        """Calculate anomaly score for current metrics."""
+        anomaly_scores = []
+        
+        for metric_name, value in metrics.items():
+            if isinstance(value, (int, float)):
+                history = self.metric_history[metric_name]
+                history.append(value)
+                
+                if len(history) >= 5:
+                    mean = statistics.mean(history)
+                    std = statistics.stdev(history) if len(history) > 1 else 0.1
+                    
+                    if std > 0:
+                        z_score = abs(value - mean) / std
+                        anomaly_score = max(0, (z_score - 1) / self.sensitivity)
+                        anomaly_scores.append(anomaly_score)
+        
+        return statistics.mean(anomaly_scores) if anomaly_scores else 0.0
+
+
+class CostOptimizer:
+    """Cost optimization for resource scaling decisions."""
+    
+    def __init__(self, budget_per_hour: float = 100.0):
+        self.budget_per_hour = budget_per_hour
+        self.current_cost = 0.0
+    
+    def calculate_scaling_cost(self, resource_changes: Dict[ResourceType, int]) -> float:
+        """Calculate cost of proposed resource changes."""
+        cost_mapping = {
+            ResourceType.THREADS: 1.0,
+            ResourceType.PROCESSES: 2.0,
+            ResourceType.MEMORY: 0.1,
+            ResourceType.CACHE: 0.05
+        }
+        
+        total_cost = 0.0
+        for resource_type, change in resource_changes.items():
+            cost_per_unit = cost_mapping.get(resource_type, 1.0)
+            total_cost += abs(change) * cost_per_unit
+        
+        return total_cost
+    
+    def is_within_budget(self, additional_cost: float) -> bool:
+        """Check if scaling action is within budget."""
+        return (self.current_cost + additional_cost) <= self.budget_per_hour
+
+
+class PredictiveScalingManager:
+    """Enhanced scaling manager with ML prediction capabilities."""
+    
+    def __init__(self):
+        self.base_manager = AdaptiveResourceManager()
+        self.anomaly_detector = AnomalyDetector()
+        self.cost_optimizer = CostOptimizer()
+        self.ml_enabled = True
+        self.prediction_models = {}
+        self.logger = logging.getLogger(__name__)
+    
+    async def start(self):
+        """Start the predictive scaling manager."""
+        await self.base_manager.start()
+        self.logger.info("Predictive scaling manager started")
+    
+    async def stop(self):
+        """Stop the predictive scaling manager."""
+        await self.base_manager.stop()
+        self.logger.info("Predictive scaling manager stopped")
+    
+    def record_enhanced_metrics(self, metrics: Dict[str, Any]):
+        """Record metrics with anomaly detection."""
+        # Calculate anomaly score
+        anomaly_score = self.anomaly_detector.calculate_anomaly_score(metrics)
+        metrics['anomaly_score'] = anomaly_score
+        
+        # Record in base manager
+        self.base_manager.record_metrics(
+            cpu_usage=metrics.get('cpu_usage', 0),
+            memory_usage=metrics.get('memory_usage', 0),
+            queue_size=metrics.get('queue_size', 0),
+            active_tasks=metrics.get('active_tasks', 0),
+            throughput=metrics.get('throughput', 0),
+            latency_p95=metrics.get('latency_p95', 0),
+            error_rate=metrics.get('error_rate', 0)
+        )
+        
+        # Handle anomalies
+        if anomaly_score > 0.8:
+            asyncio.create_task(self._handle_anomaly(metrics))
+    
+    async def _handle_anomaly(self, metrics: Dict[str, Any]):
+        """Handle detected anomalies with emergency scaling."""
+        self.logger.warning(f"Anomaly detected: {metrics.get('anomaly_score', 0):.3f}")
+        
+        # Emergency scaling - increase threads if CPU anomaly
+        if metrics.get('cpu_usage', 0) > 90:
+            current_threads = self.base_manager.current_resources[ResourceType.THREADS]
+            emergency_threads = min(64, current_threads * 2)
+            
+            if emergency_threads > current_threads:
+                self.base_manager.current_resources[ResourceType.THREADS] = emergency_threads
+                self.logger.info(f"Emergency scaling: threads {current_threads} -> {emergency_threads}")
+    
+    def get_predictions(self, minutes_ahead: int = 10) -> Dict[str, float]:
+        """Get scaling predictions (simplified implementation)."""
+        if not self.ml_enabled or len(self.base_manager.metrics_history) < 10:
+            return {}
+        
+        # Simple trend-based prediction
+        recent_metrics = list(self.base_manager.metrics_history)[-10:]
+        
+        # Calculate CPU usage trend
+        cpu_values = [getattr(m, 'cpu_usage', 0) for m in recent_metrics]
+        if len(cpu_values) >= 3:
+            trend = (cpu_values[-1] - cpu_values[0]) / len(cpu_values)
+            predicted_cpu = cpu_values[-1] + trend * minutes_ahead
+            
+            return {
+                'cpu_usage_predicted': max(0, min(100, predicted_cpu)),
+                'confidence': 0.7 if abs(trend) > 1 else 0.5
+            }
+        
+        return {}
+    
+    def get_scaling_recommendations(self) -> List[Dict[str, Any]]:
+        """Get ML-driven scaling recommendations."""
+        recommendations = []
+        predictions = self.get_predictions()
+        
+        if predictions.get('confidence', 0) > 0.6:
+            predicted_cpu = predictions.get('cpu_usage_predicted', 0)
+            
+            if predicted_cpu > 80:
+                cost = self.cost_optimizer.calculate_scaling_cost({ResourceType.THREADS: 2})
+                if self.cost_optimizer.is_within_budget(cost):
+                    recommendations.append({
+                        'resource_type': ResourceType.THREADS,
+                        'action': 'scale_up',
+                        'reason': f'Predicted CPU: {predicted_cpu:.1f}%',
+                        'confidence': predictions['confidence'],
+                        'cost': cost
+                    })
+            elif predicted_cpu < 30:
+                recommendations.append({
+                    'resource_type': ResourceType.THREADS,
+                    'action': 'scale_down',
+                    'reason': f'Predicted CPU: {predicted_cpu:.1f}%',
+                    'confidence': predictions['confidence'],
+                    'cost': 0
+                })
+        
+        return recommendations
+    
+    def get_comprehensive_statistics(self) -> Dict[str, Any]:
+        """Get comprehensive statistics including ML metrics."""
+        base_stats = self.base_manager.get_scaling_statistics()
+        
+        # Add ML-specific stats
+        ml_stats = {
+            'ml_enabled': self.ml_enabled,
+            'prediction_models': len(self.prediction_models),
+            'anomaly_threshold': self.anomaly_detector.sensitivity,
+            'budget_per_hour': self.cost_optimizer.budget_per_hour,
+            'current_cost': self.cost_optimizer.current_cost
+        }
+        
+        return {**base_stats, **ml_stats}
+
+
 # Global resource manager instance
 _resource_manager = None
 
 
-async def get_resource_manager() -> AdaptiveResourceManager:
-    """Get global adaptive resource manager instance."""
+async def get_resource_manager() -> PredictiveScalingManager:
+    """Get global predictive resource manager instance."""
     global _resource_manager
     if _resource_manager is None:
-        _resource_manager = AdaptiveResourceManager()
+        _resource_manager = PredictiveScalingManager()
         await _resource_manager.start()
     return _resource_manager
+
+
+# Utility functions for scaling optimization
+def analyze_scaling_effectiveness(scaling_history: List[ScalingAction]) -> Dict[str, float]:
+    """Analyze the effectiveness of past scaling actions."""
+    if not scaling_history:
+        return {'effectiveness_score': 0.0}
+    
+    # Simple effectiveness metric based on action frequency and direction changes
+    scale_ups = sum(1 for action in scaling_history if action.direction == ScalingDirection.UP)
+    scale_downs = sum(1 for action in scaling_history if action.direction == ScalingDirection.DOWN)
+    
+    # Balanced scaling is generally better
+    balance_score = 1.0 - abs(scale_ups - scale_downs) / len(scaling_history)
+    
+    # Recent actions should be weighted more
+    recent_actions = [action for action in scaling_history 
+                     if (datetime.now() - action.timestamp).total_seconds() < 3600]
+    recency_score = len(recent_actions) / len(scaling_history) if scaling_history else 0
+    
+    effectiveness_score = (balance_score + recency_score) / 2
+    
+    return {
+        'effectiveness_score': effectiveness_score,
+        'total_actions': len(scaling_history),
+        'scale_ups': scale_ups,
+        'scale_downs': scale_downs,
+        'recent_actions': len(recent_actions)
+    }
+
+
+def optimize_scaling_parameters(metrics_history: List, current_rules: List[ScalingRule]) -> List[ScalingRule]:
+    """Optimize scaling rule parameters based on historical performance."""
+    optimized_rules = []
+    
+    for rule in current_rules:
+        # Create optimized copy of rule
+        optimized_rule = ScalingRule(
+            name=f"optimized_{rule.name}",
+            resource_type=rule.resource_type,
+            metric=rule.metric,
+            threshold_up=rule.threshold_up,
+            threshold_down=rule.threshold_down,
+            min_samples=rule.min_samples,
+            cooldown_seconds=rule.cooldown_seconds,
+            scale_factor=rule.scale_factor,
+            min_value=rule.min_value,
+            max_value=rule.max_value,
+            enabled=rule.enabled
+        )
+        
+        # Simple optimization - reduce thresholds if system is stable
+        if len(metrics_history) > 50:
+            recent_variance = statistics.variance([
+                getattr(m, rule.metric, 0) for m in metrics_history[-20:]
+            ]) if len(metrics_history) >= 20 else 0
+            
+            if recent_variance < 5.0:  # Low variance = stable system
+                optimized_rule.threshold_up *= 0.95  # More sensitive scaling
+                optimized_rule.cooldown_seconds = int(optimized_rule.cooldown_seconds * 0.8)  # Faster response
+        
+        optimized_rules.append(optimized_rule)
+    
+    return optimized_rules
