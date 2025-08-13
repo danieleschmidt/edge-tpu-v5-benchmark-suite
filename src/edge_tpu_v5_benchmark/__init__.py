@@ -11,6 +11,7 @@ from .benchmark import TPUv5Benchmark, BenchmarkResults
 from .models import ModelLoader, CompiledTPUModel, ModelRegistry, ModelOptimizer
 from .power import PowerProfiler, PowerMeasurement, PowerStatistics
 from .database import BenchmarkDatabase, DataManager, ResultsCache
+from .cache import CacheManager, PredictiveSmartCache
 from .config import (
     BenchmarkSuiteConfig, 
     ConfigManager,
@@ -96,6 +97,8 @@ __all__ = [
     "BenchmarkDatabase",
     "DataManager",
     "ResultsCache",
+    "CacheManager",
+    "PredictiveSmartCache",
     
     # Configuration
     "BenchmarkSuiteConfig",

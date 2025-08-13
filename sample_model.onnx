@@ -1,0 +1,9 @@
+# Sample ONNX model placeholder for testing
+# This is a minimal placeholder to prevent FileNotFoundError during demos
+# In a real implementation, this would be a binary ONNX model file
+
+model_version: 1.0
+model_type: "placeholder"
+operators: ["Conv", "Relu", "MaxPool", "GlobalAveragePool", "Gemm"]
+input_shape: [1, 3, 224, 224]
+output_shape: [1, 1000]

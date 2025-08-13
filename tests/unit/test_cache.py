@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from edge_tpu_v5_benchmark.cache import (
-    CacheEntry, MemoryStorage, DiskStorage, SmartCache, 
+    CacheEntry, MemoryStorage, DiskStorage, PredictiveSmartCache, 
     CacheManager, cached
 )
 
@@ -231,12 +231,12 @@ class TestDiskStorage:
             assert len(storage.keys()) == 0
 
 
-class TestSmartCache:
+class TestPredictiveSmartCache:
     """Test SmartCache functionality."""
     
     def test_smart_cache_basic_operations(self):
         """Test basic smart cache operations."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         # Test set and get
         assert cache.set("test_key", "test_value")
@@ -251,7 +251,7 @@ class TestSmartCache:
     
     def test_smart_cache_statistics(self):
         """Test smart cache statistics."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         # Initially no stats
         stats = cache.get_statistics()
@@ -270,7 +270,7 @@ class TestSmartCache:
     
     def test_smart_cache_ttl(self):
         """Test smart cache TTL functionality."""
-        cache = SmartCache(default_ttl=1)  # 1 second TTL
+        cache = PredictiveSmartCache(default_ttl=1)  # 1 second TTL
         
         cache.set("ttl_key", "ttl_value")
         assert cache.get("ttl_key") == "ttl_value"
@@ -287,7 +287,7 @@ class TestSmartCache:
         """Test smart cache handling of large objects."""
         with tempfile.TemporaryDirectory() as tmpdir:
             disk_storage = DiskStorage(Path(tmpdir))
-            cache = SmartCache(disk_storage=disk_storage)
+            cache = PredictiveSmartCache(disk_storage=disk_storage)
             
             # Large object should go to disk
             large_value = "x" * (2 * 1024 * 1024)  # 2MB
@@ -302,7 +302,7 @@ class TestCacheDecorators:
     
     def test_cached_decorator(self):
         """Test cached function decorator."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         call_count = 0
         
         @cached(cache, ttl=60)
@@ -328,7 +328,7 @@ class TestCacheDecorators:
     
     def test_cached_decorator_with_key_func(self):
         """Test cached decorator with custom key function."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         def custom_key(*args, **kwargs):
             return f"custom:{args[0]}"
@@ -411,7 +411,7 @@ class TestCacheIntegration:
     def test_memory_disk_promotion(self):
         """Test promotion from disk to memory cache."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            cache = SmartCache(disk_storage=DiskStorage(Path(tmpdir)))
+            cache = PredictiveSmartCache(disk_storage=DiskStorage(Path(tmpdir)))
             
             # Set value that goes to disk
             cache.set("promote_key", "promote_value", force_disk=True)
@@ -428,7 +428,7 @@ class TestCacheIntegration:
         """Test concurrent cache access."""
         import threading
         
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         results = []
         errors = []
         

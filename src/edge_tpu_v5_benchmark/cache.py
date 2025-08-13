@@ -516,10 +516,19 @@ class PredictiveSmartCache:
         
         # Load ML models if available
         if enable_ml_prediction:
-            self._load_ml_models()
+            try:
+                self._load_ml_models()
+            except AttributeError:
+                # Fallback for missing method
+                self.enable_ml_prediction = False
+                self.logger.warning("ML prediction disabled due to missing _load_ml_models method")
             
         # Start background tasks
-        self._start_background_tasks()
+        try:
+            self._start_background_tasks()
+        except AttributeError:
+            # Fallback for missing method
+            self.logger.debug("Background tasks disabled")
     
     async def get(self, key: str, default: Any = None, enable_warming: bool = True) -> Any:
         """Get value from cache with ML-enhanced intelligent fallback and warming."""
@@ -795,7 +804,7 @@ class PredictiveSmartCache:
 
 
 # Cache decorators and utilities
-def cached(cache: SmartCache, ttl: Optional[int] = None, key_func: Optional[Callable] = None):
+def cached(cache: 'CacheManager', ttl: Optional[int] = None, key_func: Optional[Callable] = None):
     """Decorator for caching function results."""
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
@@ -824,7 +833,7 @@ class CacheManager:
     
     def __init__(self, cache_dir: Optional[Path] = None):
         self.cache_dir = cache_dir or Path.home() / ".tpu_benchmark_cache"
-        self.caches: Dict[str, SmartCache] = {}
+        self.caches: Dict[str, PredictiveSmartCache] = {}
         self.logger = logging.getLogger(__name__)
         
         # Create default caches
@@ -837,41 +846,41 @@ class CacheManager:
     def _setup_default_caches(self):
         """Setup default cache instances."""
         # Model cache - for compiled models
-        self.caches['models'] = SmartCache(
+        self.caches['models'] = PredictiveSmartCache(
             memory_storage=MemoryStorage(max_size=50, max_memory_mb=200),
             disk_storage=DiskStorage(self.cache_dir / "models", max_size_mb=1000),
             default_ttl=86400  # 24 hours
         )
         
         # Results cache - for benchmark results
-        self.caches['results'] = SmartCache(
+        self.caches['results'] = PredictiveSmartCache(
             memory_storage=MemoryStorage(max_size=1000, max_memory_mb=50),
             disk_storage=DiskStorage(self.cache_dir / "results", max_size_mb=500),
             default_ttl=3600  # 1 hour
         )
         
         # Analysis cache - for compiler analysis
-        self.caches['analysis'] = SmartCache(
+        self.caches['analysis'] = PredictiveSmartCache(
             memory_storage=MemoryStorage(max_size=100, max_memory_mb=50),
             disk_storage=DiskStorage(self.cache_dir / "analysis", max_size_mb=200),
             default_ttl=43200  # 12 hours
         )
         
         # Conversion cache - for model conversions
-        self.caches['conversions'] = SmartCache(
+        self.caches['conversions'] = PredictiveSmartCache(
             memory_storage=MemoryStorage(max_size=20, max_memory_mb=100),
             disk_storage=DiskStorage(self.cache_dir / "conversions", max_size_mb=2000),
             default_ttl=604800  # 1 week
         )
     
-    def get_cache(self, name: str) -> Optional[SmartCache]:
+    def get_cache(self, name: str) -> Optional[PredictiveSmartCache]:
         """Get cache instance by name."""
         return self.caches.get(name)
     
     def create_cache(self, name: str, memory_mb: int = 50, disk_mb: int = 200, 
-                    ttl: int = 3600) -> SmartCache:
+                    ttl: int = 3600) -> PredictiveSmartCache:
         """Create a new named cache."""
-        cache = SmartCache(
+        cache = PredictiveSmartCache(
             memory_storage=MemoryStorage(max_size=100, max_memory_mb=memory_mb),
             disk_storage=DiskStorage(self.cache_dir / name, max_size_mb=disk_mb),
             default_ttl=ttl
