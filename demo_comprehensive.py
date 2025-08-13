@@ -28,12 +28,12 @@ from src.edge_tpu_v5_benchmark import (
     QuantumAutoScaler,
     OptimizedQuantumTaskPlanner,
     StandaloneQuantumPlanner,
-    get_cache_manager
+    CacheManager
 )
 from src.edge_tpu_v5_benchmark.concurrency import BenchmarkJobManager
 from src.edge_tpu_v5_benchmark.health import get_health_monitor
 from src.edge_tpu_v5_benchmark.validation import BenchmarkValidator
-from src.edge_tpu_v5_benchmark.research_framework import QuantumTPUResearchFramework
+from src.edge_tpu_v5_benchmark.research_framework import ResearchFramework
 
 
 console = Console()
@@ -317,7 +317,7 @@ class ComprehensiveDemo:
         """Demonstrate intelligent caching capabilities."""
         self.print_header("Caching System")
         
-        cache_manager = get_cache_manager()
+        cache_manager = CacheManager()
         
         # Get model cache
         models_cache = cache_manager.get_cache('models')
@@ -498,7 +498,7 @@ class ComprehensiveDemo:
         """Demonstrate quantum research framework capabilities."""
         self.print_header("Research Framework")
         
-        research_framework = QuantumTPUResearchFramework()
+        research_framework = ResearchFramework()
         
         # Initialize research study
         study_config = {
