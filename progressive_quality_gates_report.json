@@ -1,0 +1,343 @@
+{
+  "execution_timestamp": "2025-08-14T20:26:54.606132",
+  "total_generations": 3,
+  "generation_reports": [
+    {
+      "generation": "gen1_basic",
+      "total_gates": 4,
+      "passed_gates": 4,
+      "failed_gates": 0,
+      "skipped_gates": 0,
+      "error_gates": 0,
+      "execution_time": 0.37430787086486816,
+      "success_rate": 100.0,
+      "overall_score": 100.0,
+      "is_passed": true,
+      "timestamp": "2025-08-14T20:26:52.411908",
+      "gate_results": [
+        {
+          "gate_name": "basic_syntax",
+          "status": "passed",
+          "execution_time": 0.36350107192993164,
+          "message": "All 66 Python files have valid syntax",
+          "score": 100.0,
+          "threshold": null,
+          "details": {
+            "total_files": 66,
+            "valid_files": 66,
+            "syntax_errors": [],
+            "error_count": 0
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.412015"
+        },
+        {
+          "gate_name": "project_structure",
+          "status": "passed",
+          "execution_time": 0.0003314018249511719,
+          "message": "All 5 required paths exist",
+          "score": 100.0,
+          "threshold": null,
+          "details": {
+            "required_paths": 5,
+            "existing_required": 5,
+            "missing_required": [],
+            "recommended_paths": 5,
+            "existing_recommended": 5,
+            "missing_recommended": []
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.775739"
+        },
+        {
+          "gate_name": "documentation",
+          "status": "passed",
+          "execution_time": 0.0013310909271240234,
+          "message": "Documentation score: 93.8/100",
+          "score": 93.75,
+          "threshold": null,
+          "details": {
+            "total_score": 93.75,
+            "max_score": 100.0,
+            "checks": [
+              "README sections: 3/4 (18.8 pts)",
+              "LICENSE: Present (15 pts)",
+              "CONTRIBUTING.md: Present (10 pts)",
+              "SECURITY.md: Present (10 pts)",
+              "Documentation files: 17 (20.0 pts)",
+              "Project metadata: 4/4 (20.0 pts)"
+            ],
+            "threshold": 80.0
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.776117"
+        },
+        {
+          "gate_name": "python_imports",
+          "status": "passed",
+          "execution_time": 0.008449792861938477,
+          "message": "Import tests passed: 9/10",
+          "score": 90.0,
+          "threshold": null,
+          "details": {
+            "standard_library": {
+              "total": 9,
+              "successful": 9,
+              "results": [
+                "\u2713 os",
+                "\u2713 sys",
+                "\u2713 pathlib",
+                "\u2713 json",
+                "\u2713 time",
+                "\u2713 datetime",
+                "\u2713 logging",
+                "\u2713 asyncio",
+                "\u2713 subprocess"
+              ]
+            },
+            "package_imports": {
+              "total": 1,
+              "successful": 0,
+              "results": [
+                "\u2717 edge_tpu_v5_benchmark.progressive_quality_gates: No module named 'numpy'"
+              ]
+            },
+            "overall": {
+              "total_tests": 10,
+              "total_success": 9,
+              "score": 90.0
+            }
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.777605"
+        }
+      ]
+    },
+    {
+      "generation": "gen2_robust",
+      "total_gates": 4,
+      "passed_gates": 3,
+      "failed_gates": 1,
+      "skipped_gates": 0,
+      "error_gates": 0,
+      "execution_time": 0.7659626007080078,
+      "success_rate": 75.0,
+      "overall_score": 75.0,
+      "is_passed": false,
+      "timestamp": "2025-08-14T20:26:52.786433",
+      "gate_results": [
+        {
+          "gate_name": "error_handling",
+          "status": "passed",
+          "execution_time": 0.07740521430969238,
+          "message": "Error handling coverage: 81.8% (32/35 files)",
+          "score": 81.818857690043,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "files_with_error_handling": 32,
+            "file_coverage": 91.42857142857143,
+            "pattern_counts": {
+              "try_except": 267,
+              "specific_exceptions": 0,
+              "logging_errors": 93,
+              "raise_statements": 79,
+              "finally_blocks": 13,
+              "context_managers": 172
+            },
+            "total_lines": 24019,
+            "weighted_score": 75.41238186435739
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.786476"
+        },
+        {
+          "gate_name": "security_patterns",
+          "status": "failed",
+          "execution_time": 0.5108010768890381,
+          "message": "Security vulnerabilities found: 8",
+          "score": 38,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "vulnerability_count": 8,
+            "good_practice_count": 19,
+            "files_with_vulnerabilities": [
+              "src/edge_tpu_v5_benchmark/cache.py",
+              "src/edge_tpu_v5_benchmark/cli.py",
+              "src/edge_tpu_v5_benchmark/compiler.py",
+              "src/edge_tpu_v5_benchmark/converter.py",
+              "src/edge_tpu_v5_benchmark/health.py"
+            ],
+            "files_with_good_practices": 17,
+            "vulnerability_penalty": 50,
+            "good_practice_bonus": 38
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:52.864165"
+        },
+        {
+          "gate_name": "logging_quality",
+          "status": "passed",
+          "execution_time": 0.10309863090515137,
+          "message": "Logging quality: 80.0% (28/35 files)",
+          "score": 80.0,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "files_with_logging": 28,
+            "file_coverage": 80.0,
+            "pattern_counts": {
+              "logger_creation": 56,
+              "log_levels": 417,
+              "structured_logging": 141,
+              "exception_logging": 0,
+              "performance_logging": 19,
+              "security_logging": 18
+            },
+            "weighted_score": 80
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:53.375269"
+        },
+        {
+          "gate_name": "configuration_validation",
+          "status": "passed",
+          "execution_time": 0.07364869117736816,
+          "message": "Configuration validation: 90.0/100",
+          "score": 90.0,
+          "threshold": null,
+          "details": {
+            "total_score": 90.0,
+            "max_score": 100.0,
+            "checks": [
+              "\u2713 pyproject.toml: Present (20 pts)",
+              "\u2717 setup.py: Missing (0 pts)",
+              "\u2713 .env.example: Present (15 pts)",
+              "\u2717 config.yaml: Missing (0 pts)",
+              "\u2717 settings.py: Missing (0 pts)",
+              "\u2713 Dockerfile: Present (15 pts)",
+              "\u2713 docker-compose.yml: Present (10 pts)",
+              "\u2713 requirements.txt: Present (10 pts)",
+              "Environment variables: 15 usages (10 pts)",
+              "Configuration classes: 25 found (10 pts)"
+            ],
+            "env_var_patterns": 15,
+            "config_classes": 25
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:53.478576"
+        }
+      ]
+    },
+    {
+      "generation": "gen3_optimized",
+      "total_gates": 4,
+      "passed_gates": 1,
+      "failed_gates": 3,
+      "skipped_gates": 0,
+      "error_gates": 0,
+      "execution_time": 1.0531885623931885,
+      "success_rate": 25.0,
+      "overall_score": 25.0,
+      "is_passed": false,
+      "timestamp": "2025-08-14T20:26:53.552665",
+      "gate_results": [
+        {
+          "gate_name": "performance_optimization",
+          "status": "failed",
+          "execution_time": 0.18872570991516113,
+          "message": "Too many performance anti-patterns: 61",
+          "score": 70,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "optimization_count": 975,
+            "antipattern_count": 61,
+            "files_with_optimizations": 32,
+            "files_with_antipatterns": 32,
+            "optimization_bonus": 50,
+            "antipattern_penalty": 30
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:53.552711"
+        },
+        {
+          "gate_name": "caching_strategy",
+          "status": "failed",
+          "execution_time": 0.22148942947387695,
+          "message": "Caching score below threshold: 59.0%",
+          "score": 59.0,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "files_with_caching": 20,
+            "pattern_counts": {
+              "lru_cache": 0,
+              "cache_decorator": 0,
+              "redis_cache": 0,
+              "memory_cache": 8,
+              "cache_methods": 3,
+              "ttl_patterns": 281,
+              "cache_invalidation": 19,
+              "cache_warming": 8
+            },
+            "cache_files_found": 1,
+            "final_score": 59.0
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:53.741708"
+        },
+        {
+          "gate_name": "scalability_patterns",
+          "status": "passed",
+          "execution_time": 0.2095019817352295,
+          "message": "Scalability score: 100.0/100",
+          "score": 100.0,
+          "threshold": null,
+          "details": {
+            "final_score": 100.0,
+            "checks": [
+              "\u2713 Dockerfile: Present",
+              "\u2713 docker-compose.yml: Present",
+              "\u2717 docker-compose.yaml: Missing",
+              "\u2713 Kubernetes manifests: 7 files (20 pts)",
+              "\u2713 Monitoring patterns: 1057 found (20 pts)",
+              "\u2713 Async patterns: 116 found (15 pts)",
+              "\u2713 Concurrency patterns: 245 found (15 pts)",
+              "\u2713 Distribution patterns: 211 found (20 pts)"
+            ],
+            "containerization_score": 20,
+            "k8s_files": 7,
+            "monitoring_patterns": 1057,
+            "async_patterns": 116,
+            "concurrency_patterns": 245,
+            "distribution_count": 211
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:53.963394"
+        },
+        {
+          "gate_name": "resource_efficiency",
+          "status": "failed",
+          "execution_time": 0.4324352741241455,
+          "message": "Too many resource inefficiencies: 41",
+          "score": 90.0,
+          "threshold": null,
+          "details": {
+            "total_files": 35,
+            "efficiency_count": 1129,
+            "inefficiency_count": 41,
+            "files_with_efficiency": 35,
+            "files_with_inefficiency": 30,
+            "efficiency_bonus": 40,
+            "inefficiency_penalty": 25,
+            "coverage_bonus": 25.0
+          },
+          "error_details": null,
+          "timestamp": "2025-08-14T20:26:54.173214"
+        }
+      ]
+    }
+  ]
+}

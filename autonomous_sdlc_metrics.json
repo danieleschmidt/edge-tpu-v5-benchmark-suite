@@ -1,0 +1,49 @@
+{
+  "sdlc_metrics": {
+    "total_execution_time": 2.195997,
+    "gates_executed": 12,
+    "gates_passed": 8,
+    "gates_failed": 4,
+    "security_issues": 8,
+    "performance_score": 70,
+    "quality_score": 66.66666666666666,
+    "overall_success_rate": 66.66666666666666,
+    "timestamp": "2025-08-14T20:26:54.607508"
+  },
+  "generation_results": {
+    "gen1_basic": {
+      "total_gates": 4,
+      "passed_gates": 4,
+      "failed_gates": 0,
+      "success_rate": 100.0,
+      "execution_time": 0.37430787086486816,
+      "is_passed": true
+    },
+    "gen2_robust": {
+      "total_gates": 4,
+      "passed_gates": 3,
+      "failed_gates": 1,
+      "success_rate": 75.0,
+      "execution_time": 0.7659626007080078,
+      "is_passed": false
+    },
+    "gen3_optimized": {
+      "total_gates": 4,
+      "passed_gates": 1,
+      "failed_gates": 3,
+      "success_rate": 25.0,
+      "execution_time": 1.0531885623931885,
+      "is_passed": false
+    }
+  },
+  "deployment_readiness": {
+    "ready": false,
+    "reason": "Security vulnerabilities found: 8",
+    "recommendations": [
+      "Fix all security vulnerabilities",
+      "Review security patterns implementation",
+      "Update vulnerable dependencies"
+    ]
+  },
+  "execution_history_count": 1
+}
