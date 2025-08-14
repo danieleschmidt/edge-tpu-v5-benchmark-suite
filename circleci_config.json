@@ -1,0 +1,34 @@
+{
+  "version": "2.1",
+  "jobs": {
+    "quality_gates": {
+      "docker": [
+        {
+          "image": "python:3.9"
+        }
+      ],
+      "steps": [
+        "checkout",
+        {
+          "run": {
+            "name": "Install Dependencies",
+            "command": "pip install -r requirements.txt"
+          }
+        },
+        {
+          "run": {
+            "name": "Run Progressive Quality Gates",
+            "command": "python3 progressive_gates_standalone.py"
+          }
+        }
+      ]
+    }
+  },
+  "workflows": {
+    "autonomous_sdlc": {
+      "jobs": [
+        "quality_gates"
+      ]
+    }
+  }
+}
