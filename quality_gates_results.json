@@ -1,0 +1,41 @@
+{
+  "timestamp": 1755444481.5924737,
+  "duration": 0.04981660842895508,
+  "overall_status": "FAIL",
+  "gates": {
+    "functionality": {
+      "status": "PASS",
+      "details": "Basic task processing: 1 tasks scheduled"
+    },
+    "security": {
+      "status": "FAIL",
+      "score": 0.5,
+      "details": "Security tests passed: 2.5/5"
+    },
+    "validation": {
+      "status": "FAIL",
+      "score": 0.5,
+      "details": "Validation tests passed: 3/6"
+    },
+    "performance": {
+      "status": "PASS",
+      "metrics": {
+        "add_throughput": "9609.8 tasks/sec",
+        "optimization_throughput": "3341.1 tasks/sec",
+        "optimization_time": "0.030s"
+      }
+    },
+    "error_handling": {
+      "status": "PASS",
+      "score": 1.0,
+      "details": "Error handling tests passed: 5/5"
+    },
+    "memory": {
+      "status": "PASS",
+      "metrics": {
+        "peak_increase": "1.03 MB",
+        "potential_leak": "1.03 MB"
+      }
+    }
+  }
+}
