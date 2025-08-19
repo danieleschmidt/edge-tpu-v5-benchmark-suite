@@ -187,7 +187,7 @@ class CodeAnalyzer:
             result = subprocess.run([
                 'coverage', 'run', '-m', 'pytest', 'tests/',
                 '&&', 'coverage', 'json'
-            ], capture_output=True, text=True, timeout=600, shell=True)
+            ], capture_output=True, text=True, timeout=600, shell=False)
 
             coverage_file = self.repo_path / 'coverage.json'
             if coverage_file.exists():

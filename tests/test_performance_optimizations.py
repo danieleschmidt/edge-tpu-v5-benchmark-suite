@@ -34,7 +34,7 @@ from edge_tpu_v5_benchmark.cache import (
     get_cache_manager, predictive_cached
 )
 from edge_tpu_v5_benchmark.concurrency import (
-    Task, TaskPriority, AdaptiveTaskScheduler, BenchmarkJobManager,
+    Task, TaskPriority, TaskScheduler, BenchmarkJobManager,
     get_concurrency_benchmark, ConcurrencyBenchmark
 )
 from edge_tpu_v5_benchmark.auto_scaling import (

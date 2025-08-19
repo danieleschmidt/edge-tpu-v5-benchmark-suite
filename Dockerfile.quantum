@@ -1,0 +1,149 @@
+# Multi-stage Quantum-Enhanced Production Dockerfile for Edge TPU v5 Benchmark Suite
+# Generation 3: Hyper-optimized with quantum acceleration capabilities
+
+# Build stage for quantum optimization
+FROM python:3.12-slim as quantum-builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    curl \
+    libopenblas-dev \
+    liblapack-dev \
+    gfortran \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set build arguments
+ARG BUILD_VERSION=v3.0
+ARG QUANTUM_ENABLED=true
+ARG OPTIMIZATION_LEVEL=hyper
+
+# Create build environment
+WORKDIR /build
+
+# Copy requirements and install dependencies
+COPY requirements.txt pyproject.toml ./
+COPY src/ ./src/
+
+# Install Python dependencies with quantum optimization
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -e .
+
+# Install quantum-specific dependencies
+RUN pip install --no-cache-dir \
+    qiskit>=0.45.0 \
+    cirq>=1.3.0 \
+    pennylane>=0.32.0 \
+    tensorflow-quantum>=0.7.3
+
+# Compile quantum optimization modules
+RUN python -c "
+import edge_tpu_v5_benchmark.quantum_performance_accelerator as qpa
+import edge_tpu_v5_benchmark.hyper_optimization_engine as hoe
+print('✅ Quantum modules compiled successfully')
+"
+
+# Runtime stage
+FROM python:3.12-slim as runtime
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    libopenblas0 \
+    liblapack3 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user for security
+RUN groupadd -r quantum && useradd -r -g quantum -u 1000 quantum
+
+# Set working directory
+WORKDIR /app
+
+# Copy application from builder
+COPY --from=quantum-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=quantum-builder /usr/local/bin /usr/local/bin
+COPY --from=quantum-builder /build/src /app/src
+
+# Copy configuration and scripts
+COPY config/ ./config/
+COPY scripts/ ./scripts/
+COPY monitoring/ ./monitoring/
+
+# Create required directories
+RUN mkdir -p /app/logs /app/cache /app/data /tmp && \
+    chown -R quantum:quantum /app /tmp
+
+# Set environment variables
+ENV PYTHONPATH=/app/src \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    ENVIRONMENT=production \
+    QUANTUM_ENABLED=true \
+    OPTIMIZATION_LEVEL=hyper \
+    LOG_LEVEL=INFO \
+    PORT=8080 \
+    GRPC_PORT=8081 \
+    METRICS_PORT=9090
+
+# Health check script
+COPY <<EOF /app/healthcheck.sh
+#!/bin/bash
+set -e
+
+# Check main API health
+curl -f http://localhost:8080/health || exit 1
+
+# Check quantum subsystem
+python3 -c "
+import sys
+sys.path.append('/app/src')
+from edge_tpu_v5_benchmark.quantum_performance_accelerator import get_quantum_accelerator
+accelerator = get_quantum_accelerator()
+metrics = accelerator.get_quantum_metrics()
+if metrics['system_coherence'] < 0:
+    exit(1)
+print('✅ Quantum systems healthy')
+" || exit 1
+
+# Check optimization engine
+python3 -c "
+import sys
+sys.path.append('/app/src')
+from edge_tpu_v5_benchmark.hyper_optimization_engine import get_hyper_optimizer
+optimizer = get_hyper_optimizer()
+print('✅ Optimization engine healthy')
+" || exit 1
+
+echo "✅ All systems healthy"
+EOF
+
+RUN chmod +x /app/healthcheck.sh && chown quantum:quantum /app/healthcheck.sh
+
+# Switch to non-root user
+USER quantum
+
+# Expose ports
+EXPOSE 8080 8081 9090
+
+# Add labels for container metadata
+LABEL \
+    org.opencontainers.image.title="Edge TPU v5 Quantum Benchmark Suite" \
+    org.opencontainers.image.description="Quantum-enhanced benchmark suite for Google TPU v5 edge cards" \
+    org.opencontainers.image.vendor="Terragon Labs" \
+    org.opencontainers.image.version="${BUILD_VERSION}" \
+    org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    quantum.terragon.com/enabled="true" \
+    quantum.terragon.com/optimization="hyper" \
+    quantum.terragon.com/coherence-time="100"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD ["/app/healthcheck.sh"]
+
+# Default command
+CMD ["python", "-m", "edge_tpu_v5_benchmark.quantum_main"]

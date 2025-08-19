@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 import psutil
 
-from edge_tpu_v5_benchmark.cache import SmartCache, CacheManager
+from edge_tpu_v5_benchmark.cache import PredictiveSmartCache, CacheManager
 from edge_tpu_v5_benchmark.concurrency import TaskScheduler, Task, TaskPriority, BenchmarkJobManager
 from edge_tpu_v5_benchmark.auto_scaling import AdaptiveResourceManager
 from edge_tpu_v5_benchmark.monitoring import MetricsCollector, PerformanceMonitor
@@ -21,7 +21,7 @@ class TestCacheScalability:
     
     def test_memory_cache_scalability(self):
         """Test memory cache performance with increasing load."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         # Test different data sizes and counts
         test_scenarios = [
@@ -78,7 +78,7 @@ class TestCacheScalability:
     
     def test_concurrent_cache_performance(self):
         """Test cache performance under concurrent access."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         num_threads = 10
         operations_per_thread = 1000
         
@@ -504,7 +504,7 @@ class TestMemoryScalability:
     
     def test_cache_memory_efficiency(self):
         """Test cache memory efficiency with large datasets."""
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         # Track memory usage
         process = psutil.Process()
