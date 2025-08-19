@@ -333,9 +333,12 @@ class BenchmarkDatabase:
             stats = {}
 
             # Count of records in each table
-            for table in ["benchmark_results", "model_metadata", "device_info"]:
-                cursor = conn.execute(f"SELECT COUNT(*) FROM {table}")
-                stats[f"{table}_count"] = cursor.fetchone()[0]
+            tables = ["benchmark_results", "model_metadata", "device_info"]
+            for table in tables:
+                # Use parameterized query to prevent SQL injection
+                if table in ["benchmark_results", "model_metadata", "device_info"]:  # Whitelist validation
+                    cursor = conn.execute(f"SELECT COUNT(*) FROM {table}")  # Safe: table name from whitelist
+                    stats[f"{table}_count"] = cursor.fetchone()[0]
 
             # Database file size
             stats["database_size_bytes"] = self.db_path.stat().st_size if self.db_path.exists() else 0

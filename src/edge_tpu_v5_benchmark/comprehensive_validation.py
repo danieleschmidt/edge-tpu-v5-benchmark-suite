@@ -1,8 +1,11 @@
 """Comprehensive Validation Framework for TPU v5 Benchmark Suite
 
-This module implements multi-layered validation including input validation,
-data integrity checks, system validation, performance validation,
-and continuous validation monitoring.
+Enhanced Generation 2 validation system:
+- Multi-tier validation (data, model, system, security)
+- Real-time integrity checking
+- Automated compliance verification
+- Performance regression detection
+- Security vulnerability scanning
 """
 
 import hashlib

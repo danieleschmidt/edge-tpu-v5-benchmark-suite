@@ -783,7 +783,7 @@ class HyperPerformanceEngine:
         import hashlib
 
         func_name = f"{computation.__module__}.{computation.__qualname__}"
-        data_hash = hashlib.md5(str(data).encode() + str(kwargs).encode()).hexdigest()
+        data_hash = hashlib.sha256(str(data).encode() + str(kwargs).encode()).hexdigest()
 
         return f"{func_name}:{data_hash}"
 

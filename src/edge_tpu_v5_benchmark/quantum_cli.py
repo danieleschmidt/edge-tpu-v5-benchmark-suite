@@ -27,7 +27,7 @@ def quantum_cli(ctx, verbose: bool, config_file: Optional[str]):
 
     # Setup logging
     log_level = 'DEBUG' if verbose else 'INFO'
-    setup_logging(level=log_level)
+    setup_logging(log_level=log_level)
 
     # Load configuration
     if config_file:
