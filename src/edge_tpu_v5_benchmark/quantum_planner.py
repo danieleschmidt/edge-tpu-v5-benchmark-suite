@@ -5,30 +5,33 @@ on TPU v5 hardware, using superposition, entanglement, and quantum annealing con
 Enhanced with comprehensive error handling, input validation, and resilience patterns.
 """
 
-import numpy as np
 import asyncio
-import threading
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Any, Set, Union
-from enum import Enum
-import time
 import json
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
-import weakref
-from contextlib import contextmanager
+import threading
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import numpy as np
 
 from .exceptions import (
-    QuantumError, QuantumCoherenceError, QuantumEntanglementError, 
-    QuantumDecoherenceError, QuantumStateError, QuantumValidationError,
-    QuantumResourceAllocationError, QuantumTaskExecutionError,
-    ErrorContext, handle_quantum_error, quantum_operation,
-    validate_input, validate_quantum_state, sanitize_input,
+    AsyncErrorHandlingContext,
+    ErrorContext,
+    QuantumDecoherenceError,
+    QuantumEntanglementError,
+    QuantumStateError,
+    QuantumValidationError,
     ResourceManager,
-    ErrorHandlingContext, AsyncErrorHandlingContext
+    handle_quantum_error,
+    quantum_operation,
+    sanitize_input,
+    validate_input,
+    validate_quantum_state,
 )
-from .security import InputValidator, DataSanitizer
+from .security import DataSanitizer, InputValidator
 
 # Configure structured logging
 logger = logging.getLogger(__name__)
@@ -56,31 +59,31 @@ class QuantumState(Enum):
 @dataclass
 class QuantumTask:
     """Quantum-inspired task representation with superposition capabilities"""
-    
+
     id: str
     name: str
     priority: float = 1.0
     complexity: float = 1.0
     dependencies: Set[str] = field(default_factory=set)
-    
+
     # Quantum properties
     state: QuantumState = QuantumState.SUPERPOSITION
     probability_amplitude: complex = 1.0 + 0j
     entangled_tasks: Set[str] = field(default_factory=set)
     decoherence_time: float = 300.0  # seconds
-    
+
     # Execution properties
     estimated_duration: float = 1.0
     resource_requirements: Dict[str, float] = field(default_factory=dict)
     execution_history: List[Dict] = field(default_factory=list)
-    
+
     # TPU-specific properties
     tpu_affinity: Optional[str] = None
     model_requirements: List[str] = field(default_factory=list)
     memory_footprint: float = 0.0
-    
+
     created_at: float = field(default_factory=time.time)
-    
+
     @validate_input(
         lambda self, chosen_path: InputValidator.validate_string(chosen_path, min_length=1),
         "Invalid chosen_path for wavefunction collapse"
@@ -91,10 +94,10 @@ class QuantumTask:
         try:
             if self.state == QuantumState.DECOHERENT:
                 raise QuantumStateError(f"Cannot collapse decoherent task {self.id}")
-            
+
             self.state = QuantumState.COLLAPSED
             self.probability_amplitude = 1.0 + 0j
-            
+
             logger.info(
                 f"Task {self.id} wavefunction collapsed to path: {chosen_path}",
                 extra={"component": "quantum_task", "operation": "collapse_wavefunction",
@@ -108,7 +111,7 @@ class QuantumTask:
                 quantum_state={"state": self.state.value, "amplitude": abs(self.probability_amplitude)}
             )
             handle_quantum_error(e, context)
-    
+
     @validate_input(
         lambda self, other_task_id: InputValidator.validate_quantum_task_id(other_task_id),
         "Invalid task ID for entanglement"
@@ -119,18 +122,18 @@ class QuantumTask:
         try:
             if other_task_id == self.id:
                 raise QuantumEntanglementError(f"Task {self.id} cannot entangle with itself")
-            
+
             if self.state == QuantumState.DECOHERENT:
                 raise QuantumStateError(f"Cannot entangle decoherent task {self.id}")
-            
+
             if len(self.entangled_tasks) >= 5:  # Limit entanglements
                 raise QuantumEntanglementError(
                     f"Task {self.id} has too many entanglements ({len(self.entangled_tasks)})"
                 )
-            
+
             self.entangled_tasks.add(other_task_id)
             self.state = QuantumState.ENTANGLED
-            
+
             logger.debug(
                 f"Task {self.id} entangled with {other_task_id}",
                 extra={"component": "quantum_task", "operation": "entangle_with",
@@ -144,7 +147,7 @@ class QuantumTask:
                 quantum_state={"entangled_count": len(self.entangled_tasks)}
             )
             handle_quantum_error(e, context)
-    
+
     def measure_decoherence(self) -> float:
         """Calculate current decoherence level based on time with bounds checking"""
         try:
@@ -155,16 +158,16 @@ class QuantumTask:
                     extra={"component": "quantum_task", "operation": "measure_decoherence"}
                 )
                 return 0.0
-            
+
             decoherence = min(1.0, elapsed / max(self.decoherence_time, 0.1))
-            
+
             if decoherence > 0.9:
                 logger.warning(
                     f"Task {self.id} is highly decoherent: {decoherence:.1%}",
                     extra={"component": "quantum_task", "operation": "measure_decoherence",
                           "task_id": self.id, "decoherence": decoherence}
                 )
-            
+
             return decoherence
         except Exception as e:
             context = ErrorContext(
@@ -174,7 +177,7 @@ class QuantumTask:
             )
             handle_quantum_error(e, context)
             return 1.0  # Safe default - assume fully decoherent
-    
+
     def is_ready_for_execution(self, completed_tasks: Set[str]) -> bool:
         """Check if task dependencies are satisfied with comprehensive validation"""
         try:
@@ -185,16 +188,16 @@ class QuantumTask:
                     extra={"component": "quantum_task", "operation": "is_ready_for_execution"}
                 )
                 return False
-            
+
             # Check state validity
             if self.state == QuantumState.DECOHERENT:
                 return False
-            
+
             # Check valid execution states
             valid_states = [QuantumState.SUPERPOSITION, QuantumState.COLLAPSED, QuantumState.ENTANGLED]
             if self.state not in valid_states:
                 return False
-            
+
             # Check dependencies
             if not self.dependencies.issubset(completed_tasks):
                 missing_deps = self.dependencies - completed_tasks
@@ -204,7 +207,7 @@ class QuantumTask:
                           "task_id": self.id, "missing_dependencies": list(missing_deps)}
                 )
                 return False
-            
+
             # Check decoherence
             decoherence = self.measure_decoherence()
             if decoherence >= 0.8:
@@ -214,9 +217,9 @@ class QuantumTask:
                           "task_id": self.id, "decoherence": decoherence}
                 )
                 return False
-            
+
             return True
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_task",
@@ -230,21 +233,21 @@ class QuantumTask:
 @dataclass
 class QuantumResource:
     """Resource representation with quantum allocation capabilities"""
-    
+
     name: str
     total_capacity: float
     available_capacity: float = 0.0
     allocation_quantum: float = 0.1  # minimum allocation unit
-    
+
     # TPU-specific properties
     tpu_cores: int = 0
     memory_gb: float = 0.0
     compute_tops: float = 0.0
-    
+
     def __post_init__(self):
         if self.available_capacity == 0.0:
             self.available_capacity = self.total_capacity
-    
+
     @validate_input(
         lambda self, required: InputValidator.validate_numeric(required, min_value=0.0),
         "Invalid resource requirement amount"
@@ -261,7 +264,7 @@ class QuantumResource:
             )
             handle_quantum_error(e, context, reraise=False)
             return False
-    
+
     @validate_input(
         lambda self, amount: InputValidator.validate_numeric(amount, min_value=0.0),
         "Invalid allocation amount"
@@ -271,9 +274,9 @@ class QuantumResource:
         try:
             if amount <= 0:
                 return True  # Nothing to allocate
-            
+
             quantum_aligned = np.ceil(amount / max(self.allocation_quantum, 0.001)) * self.allocation_quantum
-            
+
             if self.can_allocate(quantum_aligned):
                 self.available_capacity -= quantum_aligned
                 logger.debug(
@@ -298,7 +301,7 @@ class QuantumResource:
             )
             handle_quantum_error(e, context, reraise=False)
             return False
-    
+
     @validate_input(
         lambda self, amount: InputValidator.validate_numeric(amount, min_value=0.0),
         "Invalid release amount"
@@ -308,15 +311,15 @@ class QuantumResource:
         try:
             if amount <= 0:
                 return  # Nothing to release
-            
+
             quantum_aligned = np.ceil(amount / max(self.allocation_quantum, 0.001)) * self.allocation_quantum
             old_capacity = self.available_capacity
-            
+
             self.available_capacity = min(
                 self.total_capacity,
                 self.available_capacity + quantum_aligned
             )
-            
+
             released = self.available_capacity - old_capacity
             logger.debug(
                 f"Released {released} units of {self.name}",
@@ -334,7 +337,7 @@ class QuantumResource:
 
 class QuantumAnnealer:
     """Quantum annealing simulator for task optimization with enhanced error handling"""
-    
+
     def __init__(self, temperature_schedule: Optional[List[float]] = None):
         # Validate and sanitize temperature schedule
         if temperature_schedule is None:
@@ -350,15 +353,15 @@ class QuantumAnnealer:
                     )
                     continue
                 self.temperature_schedule.append(float(temp))
-            
+
             # Ensure we have at least one temperature
             if not self.temperature_schedule:
                 self.temperature_schedule = [1.0]
-        
+
         self.current_temperature = self.temperature_schedule[0]
         self.iteration = 0
         self._lock = threading.RLock()
-    
+
     @validate_input(
         lambda self, task_schedule: isinstance(task_schedule, list) and all(hasattr(t, 'estimated_duration') for t in task_schedule),
         "Invalid task schedule for energy calculation"
@@ -368,15 +371,15 @@ class QuantumAnnealer:
         try:
             with self._lock:
                 energy = 0.0
-                
+
                 if not task_schedule:
                     return energy
-                
+
                 # Minimize total completion time with bounds checking
                 try:
                     total_time = sum(
-                        max(0.0, task.estimated_duration) for task in task_schedule 
-                        if hasattr(task, 'estimated_duration') and 
+                        max(0.0, task.estimated_duration) for task in task_schedule
+                        if hasattr(task, 'estimated_duration') and
                            isinstance(task.estimated_duration, (int, float))
                     )
                     energy += total_time * 0.5
@@ -386,7 +389,7 @@ class QuantumAnnealer:
                         extra={"component": "quantum_annealer", "operation": "calculate_energy"}
                     )
                     energy += 1000.0  # High penalty for invalid tasks
-                
+
                 # Penalize dependency violations with validation
                 completed = set()
                 for task in task_schedule:
@@ -402,7 +405,7 @@ class QuantumAnnealer:
                             extra={"component": "quantum_annealer", "operation": "calculate_energy"}
                         )
                         energy += 100.0  # Penalty for invalid task
-                
+
                 # Minimize resource contention with validation
                 resource_usage = defaultdict(float)
                 for task in task_schedule:
@@ -419,7 +422,7 @@ class QuantumAnnealer:
                             extra={"component": "quantum_annealer", "operation": "calculate_energy"}
                         )
                         energy += 50.0  # Penalty for invalid resource requirements
-                
+
                 # Minimize decoherence with validation
                 for task in task_schedule:
                     try:
@@ -435,9 +438,9 @@ class QuantumAnnealer:
                             extra={"component": "quantum_annealer", "operation": "calculate_energy"}
                         )
                         energy += 10.0  # Penalty for unmeasurable decoherence
-                
+
                 return max(0.0, energy)  # Ensure non-negative energy
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_annealer",
@@ -445,10 +448,10 @@ class QuantumAnnealer:
             )
             handle_quantum_error(e, context, reraise=False)
             return float('inf')  # Return high energy for error cases
-    
+
     @validate_input(
         lambda self, tasks, max_iterations=1000: (
-            isinstance(tasks, list) and 
+            isinstance(tasks, list) and
             isinstance(max_iterations, int) and max_iterations > 0
         ),
         "Invalid parameters for annealing schedule"
@@ -464,35 +467,35 @@ class QuantumAnnealer:
                         extra={"component": "quantum_annealer", "operation": "anneal_schedule"}
                     )
                     return []
-                
+
                 # Validate and sanitize max_iterations
                 max_iterations = max(1, min(max_iterations, 10000))  # Reasonable bounds
-                
+
                 current_schedule = tasks.copy()
                 current_energy = self.calculate_energy(current_schedule)
                 best_schedule = current_schedule.copy()
                 best_energy = current_energy
-                
+
                 # Track convergence
                 improvement_count = 0
                 stagnation_count = 0
-                
+
                 logger.info(
                     f"Starting quantum annealing with {len(tasks)} tasks, {max_iterations} iterations",
                     extra={"component": "quantum_annealer", "operation": "anneal_schedule",
                           "task_count": len(tasks), "initial_energy": current_energy}
                 )
-                
+
                 for iteration in range(max_iterations):
                     try:
                         # Update temperature with bounds checking
                         temp_idx = min(
-                            iteration // max(1, (max_iterations // len(self.temperature_schedule))), 
+                            iteration // max(1, (max_iterations // len(self.temperature_schedule))),
                             len(self.temperature_schedule) - 1
                         )
                         self.current_temperature = self.temperature_schedule[temp_idx]
                         self.iteration = iteration
-                        
+
                         # Generate neighbor solution (swap two tasks)
                         new_schedule = current_schedule.copy()
                         if len(new_schedule) > 1:
@@ -505,14 +508,14 @@ class QuantumAnnealer:
                                     extra={"component": "quantum_annealer", "operation": "anneal_schedule"}
                                 )
                                 continue
-                        
+
                         # Calculate energy difference
                         new_energy = self.calculate_energy(new_schedule)
                         if new_energy == float('inf'):
                             continue  # Skip invalid schedules
-                        
+
                         delta_energy = new_energy - current_energy
-                        
+
                         # Accept or reject based on quantum annealing probability
                         acceptance_probability = 0.0
                         if delta_energy < 0:
@@ -522,17 +525,17 @@ class QuantumAnnealer:
                                 acceptance_probability = np.exp(-delta_energy / self.current_temperature)
                             except (OverflowError, ZeroDivisionError):
                                 acceptance_probability = 0.0
-                        
+
                         if acceptance_probability > np.random.random():
                             current_schedule = new_schedule
                             current_energy = new_energy
-                            
+
                             if new_energy < best_energy:
                                 best_schedule = new_schedule.copy()
                                 best_energy = new_energy
                                 improvement_count += 1
                                 stagnation_count = 0
-                                
+
                                 logger.debug(
                                     f"New best energy: {best_energy:.2f} at iteration {iteration}",
                                     extra={"component": "quantum_annealer", "operation": "anneal_schedule",
@@ -542,7 +545,7 @@ class QuantumAnnealer:
                                 stagnation_count += 1
                         else:
                             stagnation_count += 1
-                        
+
                         # Early termination for convergence
                         if stagnation_count > max_iterations // 10:  # 10% of iterations without improvement
                             logger.info(
@@ -551,7 +554,7 @@ class QuantumAnnealer:
                                       "iteration": iteration}
                             )
                             break
-                    
+
                     except Exception as e:
                         logger.warning(
                             f"Error in annealing iteration {iteration}: {e}",
@@ -559,15 +562,15 @@ class QuantumAnnealer:
                                   "iteration": iteration}
                         )
                         continue  # Skip this iteration
-                
+
                 logger.info(
                     f"Quantum annealing completed. Best energy: {best_energy:.2f}, Improvements: {improvement_count}",
                     extra={"component": "quantum_annealer", "operation": "anneal_schedule",
                           "final_energy": best_energy, "improvements": improvement_count}
                 )
-                
+
                 return best_schedule
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_annealer",
@@ -579,7 +582,7 @@ class QuantumAnnealer:
 
 class QuantumTaskPlanner:
     """Main quantum-inspired task planner with TPU optimization and enhanced resilience"""
-    
+
     def __init__(self, resources: Optional[List[QuantumResource]] = None,
                  max_tasks: int = 10000, enable_monitoring: bool = True):
         # Core data structures with thread safety
@@ -590,7 +593,7 @@ class QuantumTaskPlanner:
         self.active_tasks: Dict[str, asyncio.Task] = {}
         self.failed_tasks: Set[str] = set()
         self.max_tasks = max(1, min(max_tasks, 100000))  # Reasonable bounds
-        
+
         # Enhanced monitoring
         self.enable_monitoring = enable_monitoring
         self.metrics = {
@@ -600,10 +603,10 @@ class QuantumTaskPlanner:
             'resource_allocations': 0,
             'resource_failures': 0
         }
-        
+
         # Resource management
         self.resource_manager = ResourceManager()
-        
+
         # Quantum annealing with error handling
         try:
             self.annealer = QuantumAnnealer()
@@ -613,7 +616,7 @@ class QuantumTaskPlanner:
                 extra={"component": "quantum_planner", "operation": "__init__"}
             )
             self.annealer = QuantumAnnealer([1.0])
-        
+
         # Initialize resources with validation
         if resources:
             for resource in resources:
@@ -633,7 +636,7 @@ class QuantumTaskPlanner:
                     )
         else:
             self._init_default_resources()
-        
+
         # Quantum coherence tracking with bounds checking
         try:
             self.coherence_matrix = np.eye(0)  # Will expand as tasks are added
@@ -643,18 +646,18 @@ class QuantumTaskPlanner:
                 extra={"component": "quantum_planner", "operation": "__init__"}
             )
             self.coherence_matrix = np.array([[]])
-        
+
         self.entanglement_graph: Dict[str, Set[str]] = {}
-        
+
         # Cleanup tracking
         self._cleanup_callbacks: List[Callable] = []
-        
+
         logger.info(
             f"Quantum task planner initialized with {len(self.resources)} resources",
             extra={"component": "quantum_planner", "operation": "__init__",
                   "resource_count": len(self.resources), "max_tasks": self.max_tasks}
         )
-    
+
     def _init_default_resources(self) -> None:
         """Initialize default TPU v5 resources with error handling"""
         try:
@@ -672,37 +675,37 @@ class QuantumTaskPlanner:
                     allocation_quantum=1.0
                 ),
                 "memory_gb": QuantumResource(
-                    name="memory_gb", 
+                    name="memory_gb",
                     total_capacity=32.0,
                     allocation_quantum=0.5
                 )
             }
-            
+
             for name, resource in default_resources.items():
                 self.resources[name] = resource
                 self.resource_manager.register_resource(
-                    resource, 
+                    resource,
                     lambda r=resource: setattr(r, 'available_capacity', r.total_capacity)
                 )
-            
+
             logger.info(
                 f"Initialized {len(default_resources)} default resources",
                 extra={"component": "quantum_planner", "operation": "_init_default_resources"}
             )
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
                 operation="_init_default_resources"
             )
             handle_quantum_error(e, context, reraise=False)
-            
+
             # Fallback minimal resources
             self.resources = {
                 "cpu_cores": QuantumResource("cpu_cores", 1.0),
                 "memory_gb": QuantumResource("memory_gb", 1.0)
             }
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'id') and hasattr(task, 'state'),
         "Invalid QuantumTask object"
@@ -716,40 +719,40 @@ class QuantumTaskPlanner:
                     raise QuantumValidationError(
                         f"Maximum task limit reached ({self.max_tasks})"
                     )
-                
+
                 # Validate task ID
                 if not InputValidator.validate_quantum_task_id(task.id):
                     raise QuantumValidationError(f"Invalid task ID format: {task.id}")
-                
+
                 # Check for duplicate task ID
                 if task.id in self.tasks:
                     raise QuantumValidationError(f"Task {task.id} already exists")
-                
+
                 # Sanitize task data
                 task.name = DataSanitizer.sanitize_string(task.name, max_length=200)
                 task.priority = DataSanitizer.sanitize_numeric(task.priority, min_value=0.0, max_value=100.0)
                 task.complexity = DataSanitizer.sanitize_numeric(task.complexity, min_value=0.1, max_value=100.0)
-                
+
                 # Validate resource requirements
                 if hasattr(task, 'resource_requirements') and task.resource_requirements:
                     task.resource_requirements = DataSanitizer.sanitize_dict(
                         task.resource_requirements, max_keys=20
                     )
-                
+
                 # Add task to system
                 self.tasks[task.id] = task
                 self._expand_coherence_matrix()
-                
+
                 # Update metrics
                 self.metrics['tasks_created'] += 1
-                
+
                 logger.info(
                     f"Added quantum task {task.id} in superposition state",
                     extra={"component": "quantum_planner", "operation": "add_task",
                           "task_id": task.id, "task_name": task.name,
                           "total_tasks": len(self.tasks)}
                 )
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -757,12 +760,12 @@ class QuantumTaskPlanner:
                 task_id=getattr(task, 'id', 'unknown')
             )
             handle_quantum_error(e, context)
-    
+
     @sanitize_input(lambda *args, **kwargs: (
         (DataSanitizer.sanitize_string(args[1]) if len(args) > 1 else args[0],
          DataSanitizer.sanitize_string(args[2]) if len(args) > 2 else args[1]) + args[3:],
-        {k: (DataSanitizer.sanitize_numeric(v) if isinstance(v, (int, float)) else 
-             DataSanitizer.sanitize_string(v) if isinstance(v, str) else v) 
+        {k: (DataSanitizer.sanitize_numeric(v) if isinstance(v, (int, float)) else
+             DataSanitizer.sanitize_string(v) if isinstance(v, str) else v)
          for k, v in kwargs.items()}
     ))
     def create_task(
@@ -779,16 +782,16 @@ class QuantumTaskPlanner:
             # Input validation
             if not InputValidator.validate_quantum_task_id(task_id):
                 raise QuantumValidationError(f"Invalid task ID: {task_id}")
-            
+
             if not InputValidator.validate_string(name, min_length=1, max_length=200):
                 raise QuantumValidationError(f"Invalid task name: {name}")
-            
+
             if not InputValidator.validate_priority(priority):
                 raise QuantumValidationError(f"Invalid priority: {priority}")
-            
+
             if not InputValidator.validate_complexity(complexity):
                 raise QuantumValidationError(f"Invalid complexity: {complexity}")
-            
+
             # Validate dependencies
             validated_dependencies = set()
             if dependencies:
@@ -801,7 +804,7 @@ class QuantumTaskPlanner:
                             extra={"component": "quantum_planner", "operation": "create_task",
                                   "task_id": task_id}
                         )
-            
+
             # Validate kwargs
             validated_kwargs = {}
             for key, value in kwargs.items():
@@ -818,7 +821,7 @@ class QuantumTaskPlanner:
                     validated_kwargs[clean_key] = DataSanitizer.sanitize_dict(value)
                 else:
                     validated_kwargs[clean_key] = value
-            
+
             task = QuantumTask(
                 id=task_id,
                 name=name,
@@ -827,10 +830,10 @@ class QuantumTaskPlanner:
                 dependencies=validated_dependencies,
                 **validated_kwargs
             )
-            
+
             self.add_task(task)
             return task
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -838,11 +841,11 @@ class QuantumTaskPlanner:
                 task_id=task_id
             )
             handle_quantum_error(e, context)
-    
+
     @validate_input(
         lambda self, task1_id, task2_id: (
-            InputValidator.validate_quantum_task_id(task1_id) and 
-            InputValidator.validate_quantum_task_id(task2_id) and 
+            InputValidator.validate_quantum_task_id(task1_id) and
+            InputValidator.validate_quantum_task_id(task2_id) and
             task1_id != task2_id
         ),
         "Invalid task IDs for entanglement"
@@ -856,10 +859,10 @@ class QuantumTaskPlanner:
                     raise QuantumEntanglementError(f"Task {task1_id} not found")
                 if task2_id not in self.tasks:
                     raise QuantumEntanglementError(f"Task {task2_id} not found")
-                
+
                 task1 = self.tasks[task1_id]
                 task2 = self.tasks[task2_id]
-                
+
                 # Check entanglement limits
                 if len(task1.entangled_tasks) >= 5:
                     raise QuantumEntanglementError(
@@ -869,7 +872,7 @@ class QuantumTaskPlanner:
                     raise QuantumEntanglementError(
                         f"Task {task2_id} has too many entanglements ({len(task2.entangled_tasks)})"
                     )
-                
+
                 # Check for existing entanglement
                 if task2_id in task1.entangled_tasks:
                     logger.warning(
@@ -877,28 +880,28 @@ class QuantumTaskPlanner:
                         extra={"component": "quantum_planner", "operation": "entangle_tasks"}
                     )
                     return
-                
+
                 # Create entanglement
                 task1.entangle_with(task2_id)
                 task2.entangle_with(task1_id)
-                
+
                 # Update entanglement graph
                 self.entanglement_graph.setdefault(task1_id, set()).add(task2_id)
                 self.entanglement_graph.setdefault(task2_id, set()).add(task1_id)
-                
+
                 logger.info(
                     f"Quantum entanglement created between {task1_id} and {task2_id}",
                     extra={"component": "quantum_planner", "operation": "entangle_tasks",
                           "task1_id": task1_id, "task2_id": task2_id}
                 )
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
                 operation="entangle_tasks"
             )
             handle_quantum_error(e, context)
-    
+
     def _expand_coherence_matrix(self) -> None:
         """Expand coherence matrix for new tasks with error handling"""
         try:
@@ -908,7 +911,7 @@ class QuantumTaskPlanner:
                     f"Large number of tasks ({n_tasks}), coherence matrix may consume significant memory",
                     extra={"component": "quantum_planner", "operation": "_expand_coherence_matrix"}
                 )
-            
+
             if self.coherence_matrix.shape[0] < n_tasks:
                 try:
                     new_matrix = np.eye(n_tasks, dtype=np.float32)  # Use float32 to save memory
@@ -923,14 +926,14 @@ class QuantumTaskPlanner:
                     )
                     # Fallback to smaller matrix or disable coherence tracking
                     self.coherence_matrix = np.eye(min(100, n_tasks), dtype=np.float32)
-                    
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
                 operation="_expand_coherence_matrix"
             )
             handle_quantum_error(e, context, reraise=False)
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'priority') and hasattr(task, 'complexity'),
         "Invalid task for priority calculation"
@@ -940,45 +943,45 @@ class QuantumTaskPlanner:
         try:
             # Validate base priority
             base_priority = max(0.0, min(100.0, task.priority))
-            
+
             # Complexity factor (more complex = higher priority for early scheduling)
             complexity_value = max(0.1, min(100.0, task.complexity))
             complexity_factor = 1.0 + (complexity_value - 1.0) * 0.5
-            
+
             # Dependency factor (more dependencies = higher priority)
             dependency_count = len(task.dependencies) if hasattr(task, 'dependencies') else 0
             dependency_factor = 1.0 + min(10, dependency_count) * 0.2  # Cap at 10 dependencies
-            
+
             # Entanglement factor (entangled tasks get priority boost)
             entanglement_count = len(task.entangled_tasks) if hasattr(task, 'entangled_tasks') else 0
             entanglement_factor = 1.0 + min(5, entanglement_count) * 0.3  # Cap at 5 entanglements
-            
+
             # Decoherence penalty (tasks near decoherence get priority)
             try:
                 decoherence = task.measure_decoherence()
                 decoherence_penalty = 1.0 + max(0.0, min(1.0, decoherence)) * 2.0
             except Exception:
                 decoherence_penalty = 1.0  # Default if decoherence measurement fails
-            
+
             # Quantum amplitude influence with bounds checking
             try:
                 amplitude = abs(task.probability_amplitude)
                 amplitude_factor = max(0.001, min(10.0, amplitude ** 2))  # Reasonable bounds
             except (AttributeError, TypeError, ArithmeticError):
                 amplitude_factor = 1.0  # Default amplitude factor
-            
+
             quantum_priority = (
-                base_priority * 
-                complexity_factor * 
-                dependency_factor * 
-                entanglement_factor * 
-                decoherence_penalty * 
+                base_priority *
+                complexity_factor *
+                dependency_factor *
+                entanglement_factor *
+                decoherence_penalty *
                 amplitude_factor
             )
-            
+
             # Final bounds check
             quantum_priority = max(0.0, min(10000.0, quantum_priority))
-            
+
             logger.debug(
                 f"Calculated quantum priority for task {task.id}: {quantum_priority:.2f}",
                 extra={"component": "quantum_planner", "operation": "calculate_quantum_priority",
@@ -989,9 +992,9 @@ class QuantumTaskPlanner:
                           "decoherence": decoherence_penalty, "amplitude": amplitude_factor
                       }}
             )
-            
+
             return quantum_priority
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -1000,14 +1003,14 @@ class QuantumTaskPlanner:
             )
             handle_quantum_error(e, context, reraise=False)
             return 1.0  # Safe default priority
-    
+
     @quantum_operation("get_ready_tasks", circuit_breaker=False, retry_attempts=1)
     def get_ready_tasks(self) -> List[QuantumTask]:
         """Get tasks ready for execution using quantum selection with error handling"""
         try:
             with self._lock:
                 ready_tasks = []
-                
+
                 for task in self.tasks.values():
                     try:
                         if task.is_ready_for_execution(self.completed_tasks):
@@ -1019,7 +1022,7 @@ class QuantumTaskPlanner:
                                   "task_id": task.id}
                         )
                         continue  # Skip problematic tasks
-                
+
                 # Sort by quantum priority with error handling
                 try:
                     ready_tasks.sort(key=self.calculate_quantum_priority, reverse=True)
@@ -1029,15 +1032,15 @@ class QuantumTaskPlanner:
                         extra={"component": "quantum_planner", "operation": "get_ready_tasks"}
                     )
                     # Keep original order if sorting fails
-                
+
                 logger.debug(
                     f"Found {len(ready_tasks)} ready tasks",
                     extra={"component": "quantum_planner", "operation": "get_ready_tasks",
                           "ready_count": len(ready_tasks), "total_tasks": len(self.tasks)}
                 )
-                
+
                 return ready_tasks
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -1045,7 +1048,7 @@ class QuantumTaskPlanner:
             )
             handle_quantum_error(e, context, reraise=False)
             return []  # Safe default
-    
+
     @quantum_operation("optimize_schedule", retry_attempts=2, timeout_seconds=60.0)
     def optimize_schedule(self) -> List[QuantumTask]:
         """Use quantum annealing to optimize task execution schedule with resilience"""
@@ -1057,13 +1060,13 @@ class QuantumTaskPlanner:
                     extra={"component": "quantum_planner", "operation": "optimize_schedule"}
                 )
                 return []
-            
+
             logger.info(
                 f"Optimizing schedule for {len(ready_tasks)} ready tasks",
                 extra={"component": "quantum_planner", "operation": "optimize_schedule",
                       "task_count": len(ready_tasks)}
             )
-            
+
             # Use quantum annealer with error handling
             try:
                 optimized_schedule = self.annealer.anneal_schedule(ready_tasks)
@@ -1074,7 +1077,7 @@ class QuantumTaskPlanner:
                 )
                 # Fallback to simple priority ordering
                 optimized_schedule = ready_tasks.copy()
-            
+
             # Collapse wavefunctions for scheduled tasks with error handling
             successfully_collapsed = 0
             for i, task in enumerate(optimized_schedule):
@@ -1088,7 +1091,7 @@ class QuantumTaskPlanner:
                               "task_id": task.id}
                     )
                     # Continue with other tasks
-            
+
             logger.info(
                 f"Schedule optimization completed: {len(optimized_schedule)} tasks, "
                 f"{successfully_collapsed} wavefunctions collapsed",
@@ -1096,9 +1099,9 @@ class QuantumTaskPlanner:
                       "scheduled_tasks": len(optimized_schedule),
                       "collapsed_tasks": successfully_collapsed}
             )
-            
+
             return optimized_schedule
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -1106,7 +1109,7 @@ class QuantumTaskPlanner:
             )
             handle_quantum_error(e, context, reraise=False)
             return []  # Safe default
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'resource_requirements'),
         "Task missing resource requirements"
@@ -1117,7 +1120,7 @@ class QuantumTaskPlanner:
         try:
             if not hasattr(task, 'resource_requirements') or not task.resource_requirements:
                 return True  # No resources required
-            
+
             for resource_name, required_amount in task.resource_requirements.items():
                 try:
                     # Validate resource name and amount
@@ -1128,7 +1131,7 @@ class QuantumTaskPlanner:
                                   "task_id": task.id}
                         )
                         continue
-                    
+
                     if not isinstance(required_amount, (int, float)) or required_amount < 0:
                         logger.warning(
                             f"Invalid resource amount for task {task.id}: {required_amount}",
@@ -1136,7 +1139,7 @@ class QuantumTaskPlanner:
                                   "task_id": task.id, "resource": resource_name}
                         )
                         continue
-                    
+
                     if resource_name in self.resources:
                         resource = self.resources[resource_name]
                         if not resource.can_allocate(required_amount):
@@ -1155,7 +1158,7 @@ class QuantumTaskPlanner:
                                   "task_id": task.id, "resource": resource_name}
                         )
                         return False
-                        
+
                 except Exception as e:
                     logger.error(
                         f"Error checking resource {resource_name} for task {task.id}: {e}",
@@ -1163,9 +1166,9 @@ class QuantumTaskPlanner:
                               "task_id": task.id, "resource": resource_name}
                     )
                     return False
-            
+
             return True
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -1174,7 +1177,7 @@ class QuantumTaskPlanner:
             )
             handle_quantum_error(e, context, reraise=False)
             return False  # Safe default
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'resource_requirements'),
         "Task missing resource requirements"
@@ -1183,12 +1186,12 @@ class QuantumTaskPlanner:
     def allocate_task_resources(self, task: QuantumTask) -> bool:
         """Allocate resources for task execution with comprehensive error handling and rollback"""
         allocated_resources = []
-        
+
         try:
             with self._lock:
                 if not hasattr(task, 'resource_requirements') or not task.resource_requirements:
                     return True  # No resources to allocate
-                
+
                 # Pre-check all resources to avoid partial allocation failures
                 for resource_name, required_amount in task.resource_requirements.items():
                     if resource_name not in self.resources:
@@ -1198,7 +1201,7 @@ class QuantumTaskPlanner:
                                   "task_id": task.id, "resource": resource_name}
                         )
                         return False
-                    
+
                     resource = self.resources[resource_name]
                     if not resource.can_allocate(required_amount):
                         logger.debug(
@@ -1208,7 +1211,7 @@ class QuantumTaskPlanner:
                                   "required": required_amount, "available": resource.available_capacity}
                         )
                         return False
-                
+
                 # Perform actual allocations
                 for resource_name, required_amount in task.resource_requirements.items():
                     try:
@@ -1239,23 +1242,23 @@ class QuantumTaskPlanner:
                         # Rollback all previous allocations
                         self._rollback_allocations(allocated_resources)
                         return False
-                
+
                 # Update metrics
                 self.metrics['resource_allocations'] += len(allocated_resources)
-                
+
                 logger.info(
                     f"Successfully allocated {len(allocated_resources)} resources for task {task.id}",
                     extra={"component": "quantum_planner", "operation": "allocate_task_resources",
                           "task_id": task.id, "resource_count": len(allocated_resources)}
                 )
-                
+
                 return True
-                
+
         except Exception as e:
             # Rollback all allocations on any error
             self._rollback_allocations(allocated_resources)
             self.metrics['resource_failures'] += 1
-            
+
             context = ErrorContext(
                 component="quantum_planner",
                 operation="allocate_task_resources",
@@ -1263,7 +1266,7 @@ class QuantumTaskPlanner:
             )
             handle_quantum_error(e, context, reraise=False)
             return False
-    
+
     def _rollback_allocations(self, allocated_resources: List[Tuple[str, float]]) -> None:
         """Rollback resource allocations safely"""
         for res_name, amount in allocated_resources:
@@ -1281,7 +1284,7 @@ class QuantumTaskPlanner:
                     extra={"component": "quantum_planner", "operation": "_rollback_allocations",
                           "resource": res_name}
                 )
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'resource_requirements'),
         "Task missing resource requirements"
@@ -1292,7 +1295,7 @@ class QuantumTaskPlanner:
             with self._lock:
                 if not hasattr(task, 'resource_requirements') or not task.resource_requirements:
                     return  # No resources to release
-                
+
                 released_count = 0
                 for resource_name, amount in task.resource_requirements.items():
                     try:
@@ -1317,13 +1320,13 @@ class QuantumTaskPlanner:
                                   "task_id": task.id, "resource": resource_name}
                         )
                         continue  # Continue with other resources
-                
+
                 logger.debug(
                     f"Released {released_count} resources for task {task.id}",
                     extra={"component": "quantum_planner", "operation": "release_task_resources",
                           "task_id": task.id, "released_count": released_count}
                 )
-                
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_planner",
@@ -1331,7 +1334,7 @@ class QuantumTaskPlanner:
                 task_id=getattr(task, 'id', 'unknown')
             )
             handle_quantum_error(e, context, reraise=False)
-    
+
     @validate_input(
         lambda self, task: hasattr(task, 'id') and hasattr(task, 'estimated_duration'),
         "Invalid task for execution"
@@ -1341,19 +1344,19 @@ class QuantumTaskPlanner:
         start_time = time.time()
         task_id = getattr(task, 'id', 'unknown')
         execution_record = None
-        
+
         async with AsyncErrorHandlingContext(
             component="quantum_planner",
             operation="execute_task",
             task_id=task_id,
             suppress_exceptions=True
         ) as error_ctx:
-            
+
             try:
                 # Validate task state before execution
                 if not hasattr(task, 'state') or task.state == QuantumState.DECOHERENT:
                     raise QuantumStateError(f"Task {task_id} is in invalid state for execution")
-                
+
                 # Check decoherence level
                 try:
                     decoherence = task.measure_decoherence()
@@ -1368,7 +1371,7 @@ class QuantumTaskPlanner:
                               "task_id": task_id}
                     )
                     decoherence = 0.5  # Assume moderate decoherence
-                
+
                 # Validate and sanitize execution parameters
                 execution_time = getattr(task, 'estimated_duration', 1.0)
                 if not isinstance(execution_time, (int, float)) or execution_time <= 0:
@@ -1378,18 +1381,18 @@ class QuantumTaskPlanner:
                         extra={"component": "quantum_planner", "operation": "execute_task",
                               "task_id": task_id}
                     )
-                
+
                 complexity = getattr(task, 'complexity', 1.0)
                 if not isinstance(complexity, (int, float)) or complexity <= 0:
                     complexity = 1.0
-                
+
                 logger.info(
                     f"Starting execution of quantum task {task_id}",
                     extra={"component": "quantum_planner", "operation": "execute_task",
                           "task_id": task_id, "estimated_duration": execution_time,
                           "complexity": complexity, "decoherence": decoherence}
                 )
-                
+
                 # Add quantum noise based on complexity with bounds checking
                 try:
                     quantum_noise = np.random.normal(0, min(complexity * 0.1, 1.0))
@@ -1401,9 +1404,9 @@ class QuantumTaskPlanner:
                               "task_id": task_id}
                     )
                     quantum_noise = 0.0
-                
+
                 actual_execution_time = max(0.1, min(execution_time + quantum_noise, 300.0))  # Cap at 5 minutes
-                
+
                 # Simulate execution delay with cancellation support
                 simulation_time = min(actual_execution_time, 0.5)  # Cap simulation time
                 try:
@@ -1415,7 +1418,7 @@ class QuantumTaskPlanner:
                               "task_id": task_id}
                     )
                     raise
-                
+
                 # Update task state safely
                 if hasattr(task, 'state'):
                     old_state = task.state
@@ -1425,7 +1428,7 @@ class QuantumTaskPlanner:
                         extra={"component": "quantum_planner", "operation": "execute_task",
                               "task_id": task_id}
                     )
-                
+
                 # Record execution history
                 end_time = time.time()
                 execution_record = {
@@ -1437,7 +1440,7 @@ class QuantumTaskPlanner:
                     "success": True,
                     "decoherence_at_start": decoherence
                 }
-                
+
                 if hasattr(task, 'execution_history'):
                     if not isinstance(task.execution_history, list):
                         task.execution_history = []
@@ -1445,17 +1448,17 @@ class QuantumTaskPlanner:
                     # Limit history to prevent memory bloat
                     if len(task.execution_history) > 100:
                         task.execution_history = task.execution_history[-50:]
-                
+
                 # Update metrics
                 self.metrics['tasks_completed'] += 1
-                
+
                 logger.info(
                     f"Quantum task {task_id} executed successfully in {end_time - start_time:.2f}s",
                     extra={"component": "quantum_planner", "operation": "execute_task",
                           "task_id": task_id, "duration": end_time - start_time,
                           "quantum_noise": quantum_noise}
                 )
-                
+
                 return {
                     "task_id": task_id,
                     "success": True,
@@ -1467,13 +1470,13 @@ class QuantumTaskPlanner:
                     },
                     "execution_record": execution_record
                 }
-                
+
             except asyncio.CancelledError:
                 # Handle cancellation gracefully
                 if hasattr(task, 'state'):
                     task.state = QuantumState.DECOHERENT
                 self.metrics['tasks_failed'] += 1
-                
+
                 return {
                     "task_id": task_id,
                     "success": False,
@@ -1481,12 +1484,12 @@ class QuantumTaskPlanner:
                     "duration": time.time() - start_time,
                     "cancelled": True
                 }
-                
+
             except Exception as e:
                 # Handle all other exceptions
                 if hasattr(task, 'state'):
                     task.state = QuantumState.DECOHERENT
-                
+
                 # Record failed execution
                 execution_record = {
                     "start_time": start_time,
@@ -1497,21 +1500,21 @@ class QuantumTaskPlanner:
                     "error": str(e),
                     "exception_type": type(e).__name__
                 }
-                
+
                 if hasattr(task, 'execution_history'):
                     if not isinstance(task.execution_history, list):
                         task.execution_history = []
                     task.execution_history.append(execution_record)
-                
+
                 self.metrics['tasks_failed'] += 1
                 self.failed_tasks.add(task_id)
-                
+
                 logger.error(
                     f"Quantum task {task_id} execution failed: {e}",
                     extra={"component": "quantum_planner", "operation": "execute_task",
                           "task_id": task_id, "error": str(e), "exception_type": type(e).__name__}
                 )
-                
+
                 return {
                     "task_id": task_id,
                     "success": False,
@@ -1520,7 +1523,7 @@ class QuantumTaskPlanner:
                     "exception_type": type(e).__name__,
                     "execution_record": execution_record
                 }
-        
+
         # This should not be reached, but included for safety
         return {
             "task_id": task_id,
@@ -1528,12 +1531,12 @@ class QuantumTaskPlanner:
             "error": "Unexpected execution path",
             "duration": time.time() - start_time
         }
-    
+
     @quantum_operation("run_quantum_execution_cycle", retry_attempts=1, timeout_seconds=120.0)
     async def run_quantum_execution_cycle(self, max_concurrent_tasks: int = 3) -> Dict[str, Any]:
         """Run one quantum execution cycle with enhanced error handling and resource management"""
         cycle_start = time.time()
-        
+
         # Initialize results with comprehensive structure
         results = {
             "cycle_start": cycle_start,
@@ -1546,24 +1549,24 @@ class QuantumTaskPlanner:
             "metrics": {},
             "errors": []
         }
-        
+
         # Resource manager for cleanup
         async with AsyncErrorHandlingContext(
             component="quantum_planner",
             operation="run_quantum_execution_cycle",
             suppress_exceptions=True
         ) as error_ctx:
-            
+
             try:
                 # Validate max_concurrent_tasks
                 max_concurrent_tasks = max(1, min(max_concurrent_tasks, 10))
-                
+
                 logger.info(
                     f"Starting quantum execution cycle with max {max_concurrent_tasks} concurrent tasks",
                     extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
                           "max_concurrent": max_concurrent_tasks}
                 )
-                
+
                 # Get optimized schedule with error handling
                 try:
                     optimized_schedule = self.optimize_schedule()
@@ -1574,7 +1577,7 @@ class QuantumTaskPlanner:
                     )
                     optimized_schedule = []
                     results["errors"].append({"stage": "schedule_optimization", "error": str(e)})
-                
+
                 if not optimized_schedule:
                     logger.info(
                         "No tasks ready for execution in this cycle",
@@ -1582,11 +1585,11 @@ class QuantumTaskPlanner:
                     )
                     results["metrics"] = self._calculate_cycle_metrics(results)
                     return results
-                
+
                 # Execute tasks with resource constraints and error handling
                 executing_tasks = []
                 resource_allocated_tasks = []
-                
+
                 for task in optimized_schedule:
                     try:
                         if len(executing_tasks) >= max_concurrent_tasks:
@@ -1595,16 +1598,16 @@ class QuantumTaskPlanner:
                                 extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle"}
                             )
                             break
-                        
+
                         # Check and allocate resources
                         if self.can_allocate_resources(task):
                             if self.allocate_task_resources(task):
                                 resource_allocated_tasks.append(task)
-                                
+
                                 # Start task execution
                                 task_coroutine = self.execute_task(task)
                                 executing_tasks.append((task, task_coroutine))
-                                
+
                                 logger.info(
                                     f"Started execution of quantum task {task.id}",
                                     extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
@@ -1630,7 +1633,7 @@ class QuantumTaskPlanner:
                         )
                         results["errors"].append({"stage": "task_preparation", "task_id": task.id, "error": str(e)})
                         continue
-                
+
                 # Wait for task completions with timeout and error handling
                 if executing_tasks:
                     try:
@@ -1639,12 +1642,12 @@ class QuantumTaskPlanner:
                             extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
                                   "executing_count": len(executing_tasks)}
                         )
-                        
+
                         task_results = await asyncio.gather(
                             *[task_coro for _, task_coro in executing_tasks],
                             return_exceptions=True
                         )
-                        
+
                         # Process results with comprehensive error handling
                         for (task, _), result in zip(executing_tasks, task_results):
                             try:
@@ -1652,10 +1655,10 @@ class QuantumTaskPlanner:
                                     if result.get("success"):
                                         results["tasks_executed"].append(result)
                                         self.completed_tasks.add(task.id)
-                                        
+
                                         # Handle entangled tasks safely
                                         self._handle_entangled_tasks(task)
-                                        
+
                                     elif result.get("cancelled"):
                                         results["tasks_cancelled"].append(result)
                                         logger.info(
@@ -1670,7 +1673,7 @@ class QuantumTaskPlanner:
                                             extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
                                                   "task_id": task.id}
                                         )
-                                
+
                                 elif isinstance(result, Exception):
                                     error_result = {
                                         "task_id": task.id,
@@ -1683,7 +1686,7 @@ class QuantumTaskPlanner:
                                         extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
                                               "task_id": task.id, "exception_type": type(result).__name__}
                                     )
-                                
+
                                 else:
                                     # Unexpected result type
                                     error_result = {
@@ -1692,7 +1695,7 @@ class QuantumTaskPlanner:
                                         "result": str(result)
                                     }
                                     results["tasks_failed"].append(error_result)
-                                
+
                             except Exception as e:
                                 logger.error(
                                     f"Error processing result for task {task.id}: {e}",
@@ -1700,7 +1703,7 @@ class QuantumTaskPlanner:
                                           "task_id": task.id}
                                 )
                                 results["errors"].append({"stage": "result_processing", "task_id": task.id, "error": str(e)})
-                            
+
                             finally:
                                 # Always release resources
                                 try:
@@ -1711,33 +1714,33 @@ class QuantumTaskPlanner:
                                         extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle",
                                               "task_id": task.id}
                                     )
-                    
+
                     except Exception as e:
                         logger.error(
                             f"Error during task execution phase: {e}",
                             extra={"component": "quantum_planner", "operation": "run_quantum_execution_cycle"}
                         )
                         results["errors"].append({"stage": "task_execution", "error": str(e)})
-                        
+
                         # Release resources for all tasks in case of failure
                         for task in resource_allocated_tasks:
                             try:
                                 self.release_task_resources(task)
                             except Exception:
                                 pass  # Best effort cleanup
-                
+
                 # Calculate resource utilization safely
                 self._calculate_resource_utilization(results)
-                
+
                 # Calculate quantum coherence safely
                 self._calculate_quantum_coherence(results)
-                
+
                 # Calculate comprehensive metrics
                 results["metrics"] = self._calculate_cycle_metrics(results)
-                
+
                 cycle_duration = time.time() - cycle_start
                 results["cycle_duration"] = cycle_duration
-                
+
                 logger.info(
                     f"Quantum execution cycle completed in {cycle_duration:.2f}s: "
                     f"{len(results['tasks_executed'])} executed, "
@@ -1747,9 +1750,9 @@ class QuantumTaskPlanner:
                           "duration": cycle_duration, "executed": len(results['tasks_executed']),
                           "failed": len(results['tasks_failed']), "cancelled": len(results['tasks_cancelled'])}
                 )
-                
+
                 return results
-                
+
             except Exception as e:
                 logger.error(
                     f"Critical error in quantum execution cycle: {e}",
@@ -1758,13 +1761,13 @@ class QuantumTaskPlanner:
                 results["errors"].append({"stage": "critical", "error": str(e)})
                 results["cycle_duration"] = time.time() - cycle_start
                 return results
-    
+
     def _handle_entangled_tasks(self, completed_task: QuantumTask) -> None:
         """Handle quantum entanglement effects when a task completes"""
         try:
             if not hasattr(completed_task, 'entangled_tasks'):
                 return
-            
+
             for entangled_id in completed_task.entangled_tasks:
                 try:
                     if entangled_id in self.tasks:
@@ -1773,7 +1776,7 @@ class QuantumTaskPlanner:
                             # Quantum measurement affects entangled tasks
                             old_amplitude = entangled_task.probability_amplitude
                             entangled_task.probability_amplitude *= 0.9
-                            
+
                             logger.debug(
                                 f"Entanglement effect: task {entangled_id} amplitude reduced from "
                                 f"{abs(old_amplitude):.3f} to {abs(entangled_task.probability_amplitude):.3f}",
@@ -1791,7 +1794,7 @@ class QuantumTaskPlanner:
                 f"Error in entanglement handling: {e}",
                 extra={"component": "quantum_planner", "operation": "_handle_entangled_tasks"}
             )
-    
+
     def _calculate_resource_utilization(self, results: Dict[str, Any]) -> None:
         """Calculate resource utilization safely"""
         try:
@@ -1812,22 +1815,22 @@ class QuantumTaskPlanner:
                         extra={"component": "quantum_planner", "operation": "_calculate_resource_utilization"}
                     )
                     resource_utilization[name] = 0.0
-            
+
             results["resource_utilization"] = resource_utilization
-            
+
         except Exception as e:
             logger.error(
                 f"Error calculating resource utilization: {e}",
                 extra={"component": "quantum_planner", "operation": "_calculate_resource_utilization"}
             )
             results["resource_utilization"] = {}
-    
+
     def _calculate_quantum_coherence(self, results: Dict[str, Any]) -> None:
         """Calculate quantum coherence safely"""
         try:
             coherent_tasks = []
             total_coherence = 0.0
-            
+
             for task in self.tasks.values():
                 try:
                     if hasattr(task, 'state') and task.state != QuantumState.DECOHERENT:
@@ -1840,19 +1843,19 @@ class QuantumTaskPlanner:
                                 total_coherence += 1.0  # Default coherence
                 except Exception:
                     continue  # Skip problematic tasks
-            
+
             if coherent_tasks:
                 results["quantum_coherence"] = total_coherence / len(coherent_tasks)
             else:
                 results["quantum_coherence"] = 0.0
-            
+
         except Exception as e:
             logger.error(
                 f"Error calculating quantum coherence: {e}",
                 extra={"component": "quantum_planner", "operation": "_calculate_quantum_coherence"}
             )
             results["quantum_coherence"] = 0.0
-    
+
     def _calculate_cycle_metrics(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Calculate comprehensive cycle metrics"""
         try:
@@ -1862,11 +1865,11 @@ class QuantumTaskPlanner:
                 "cancellation_rate": len(results["tasks_cancelled"]) / max(1, len(results["tasks_executed"]) + len(results["tasks_failed"]) + len(results["tasks_cancelled"])),
                 "error_count": len(results["errors"]),
                 "avg_execution_time": (
-                    sum(task["duration"] for task in results["tasks_executed"] if "duration" in task) / 
+                    sum(task["duration"] for task in results["tasks_executed"] if "duration" in task) /
                     max(1, len(results["tasks_executed"]))
                 ) if results["tasks_executed"] else 0.0,
                 "resource_efficiency": (
-                    sum(results["resource_utilization"].values()) / 
+                    sum(results["resource_utilization"].values()) /
                     max(1, len(results["resource_utilization"]))
                 ) if results["resource_utilization"] else 0.0,
                 "coherence_level": results.get("quantum_coherence", 0.0)
@@ -1877,7 +1880,7 @@ class QuantumTaskPlanner:
                 extra={"component": "quantum_planner", "operation": "_calculate_cycle_metrics"}
             )
             return {"error": str(e)}
-    
+
     def get_system_state(self) -> Dict[str, Any]:
         """Get current quantum system state"""
         state = {
@@ -1893,12 +1896,12 @@ class QuantumTaskPlanner:
                 "decoherent_tasks": 0
             }
         }
-        
+
         # Resource utilization
         for name, resource in self.resources.items():
             utilization = 1.0 - (resource.available_capacity / resource.total_capacity)
             state["resource_utilization"][name] = utilization
-        
+
         # Quantum metrics
         state_counts = {
             QuantumState.SUPERPOSITION: 0,
@@ -1906,12 +1909,12 @@ class QuantumTaskPlanner:
             QuantumState.ENTANGLED: 0,
             QuantumState.DECOHERENT: 0
         }
-        
+
         total_coherence = 0.0
         for task in self.tasks.values():
             state_counts[task.state] += 1
             total_coherence += abs(task.probability_amplitude)**2
-        
+
         state["quantum_metrics"].update({
             "average_coherence": total_coherence / max(len(self.tasks), 1),
             "superposition_tasks": state_counts[QuantumState.SUPERPOSITION],
@@ -1919,9 +1922,9 @@ class QuantumTaskPlanner:
             "entangled_tasks": state_counts[QuantumState.ENTANGLED],
             "decoherent_tasks": state_counts[QuantumState.DECOHERENT]
         })
-        
+
         return state
-    
+
     def export_quantum_state(self, filename: str) -> None:
         """Export current quantum state to JSON file"""
         export_data = {
@@ -1931,7 +1934,7 @@ class QuantumTaskPlanner:
             "resources": {},
             "entanglement_graph": {k: list(v) for k, v in self.entanglement_graph.items()}
         }
-        
+
         # Export task details
         for task_id, task in self.tasks.items():
             export_data["tasks"][task_id] = {
@@ -1948,7 +1951,7 @@ class QuantumTaskPlanner:
                 "decoherence_level": task.measure_decoherence(),
                 "execution_history": task.execution_history
             }
-        
+
         # Export resource status
         for name, resource in self.resources.items():
             export_data["resources"][name] = {
@@ -1956,8 +1959,8 @@ class QuantumTaskPlanner:
                 "available_capacity": resource.available_capacity,
                 "utilization": 1.0 - (resource.available_capacity / resource.total_capacity)
             }
-        
+
         with open(filename, 'w') as f:
             json.dump(export_data, f, indent=2)
-        
+
         logger.info(f"Quantum state exported to {filename}")

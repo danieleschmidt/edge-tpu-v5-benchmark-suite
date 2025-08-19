@@ -1,13 +1,14 @@
 """Configuration management for the Edge TPU v5 Benchmark Suite."""
 
-import os
 import json
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional, Union, List
-from dataclasses import dataclass, field, asdict
 import logging
+import os
+from dataclasses import asdict, dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -159,11 +160,11 @@ class BenchmarkSuiteConfig:
     network: NetworkConfig = field(default_factory=NetworkConfig)
     reporting: ReportingConfig = field(default_factory=ReportingConfig)
     experimental: ExperimentalConfig = field(default_factory=ExperimentalConfig)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary."""
         return asdict(self)
-    
+
     def save(self, path: Union[str, Path], format: str = "yaml") -> None:
         """Save configuration to file.
         
@@ -174,7 +175,7 @@ class BenchmarkSuiteConfig:
         data = self.to_dict()
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if format.lower() == "yaml":
             with open(path, 'w') as f:
                 yaml.dump(data, f, default_flow_style=False, indent=2)
@@ -183,13 +184,13 @@ class BenchmarkSuiteConfig:
                 json.dump(data, f, indent=2)
         else:
             raise ValueError(f"Unsupported format: {format}")
-        
+
         logger.info(f"Saved configuration to {path}")
 
 
 class ConfigManager:
     """Configuration manager for loading and managing settings."""
-    
+
     def __init__(self, config_file: Optional[Union[str, Path]] = None):
         """Initialize configuration manager.
         
@@ -199,39 +200,39 @@ class ConfigManager:
         self.config_file = Path(config_file) if config_file else None
         self._config = BenchmarkSuiteConfig()
         self._load_configuration()
-    
+
     def _load_configuration(self) -> None:
         """Load configuration from various sources."""
         # 1. Load from file if specified
         if self.config_file and self.config_file.exists():
             self._load_from_file(self.config_file)
-        
+
         # 2. Load from environment variables
         self._load_from_environment()
-        
+
         # 3. Apply any command-line overrides (if available)
         self._apply_overrides()
-        
+
         logger.info("Configuration loaded successfully")
-    
+
     def _load_from_file(self, config_file: Path) -> None:
         """Load configuration from YAML or JSON file."""
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file) as f:
                 if config_file.suffix.lower() in ['.yaml', '.yml']:
                     data = yaml.safe_load(f)
                 elif config_file.suffix.lower() == '.json':
                     data = json.load(f)
                 else:
                     raise ValueError(f"Unsupported config file format: {config_file.suffix}")
-            
+
             self._update_config_from_dict(data)
             logger.info(f"Loaded configuration from {config_file}")
-            
+
         except Exception as e:
             logger.error(f"Failed to load configuration from {config_file}: {e}")
             raise
-    
+
     def _load_from_environment(self) -> None:
         """Load configuration from environment variables."""
         env_mappings = {
@@ -241,7 +242,7 @@ class ConfigManager:
             "TPU_RUNTIME_VERSION": ("tpu", "runtime_version"),
             "TPU_COMPILER_PATH": ("tpu", "compiler_path"),
             "TPU_RUNTIME_PATH": ("tpu", "runtime_path"),
-            
+
             # Benchmark Configuration
             "DEFAULT_ITERATIONS": ("benchmark", "default_iterations", int),
             "DEFAULT_WARMUP_ITERATIONS": ("benchmark", "default_warmup_iterations", int),
@@ -249,7 +250,7 @@ class ConfigManager:
             "POWER_SAMPLING_RATE_HZ": ("benchmark", "power_sampling_rate_hz", int),
             "POWER_MONITORING_ENABLED": ("benchmark", "enable_power_monitoring", bool),
             "THERMAL_MONITORING_ENABLED": ("benchmark", "thermal_monitoring_enabled", bool),
-            
+
             # Model Configuration
             "MODEL_CACHE_DIR": ("model", "cache_dir"),
             "CACHE_MAX_SIZE_GB": ("model", "cache_max_size_gb", float),
@@ -257,27 +258,27 @@ class ConfigManager:
             "DEFAULT_OPTIMIZATION_LEVEL": ("model", "default_optimization_level", int),
             "ENABLE_QUANTIZATION": ("model", "enable_quantization", bool),
             "MAX_MODEL_SIZE_MB": ("model", "max_model_size_mb", int),
-            
+
             # Logging Configuration
             "LOG_LEVEL": ("logging", "level"),
             "LOG_FORMAT": ("logging", "format"),
             "LOG_FILE_PATH": ("logging", "file_path"),
             "LOG_DIR": ("logging", "log_dir"),
-            
+
             # Database Configuration
             "DATABASE_URL": ("database", "url"),
             "RESULT_RETENTION_DAYS": ("database", "result_retention_days", int),
-            
+
             # Security Configuration
             "ALLOW_REMOTE_MODELS": ("security", "allow_remote_models", bool),
             "VERIFY_MODEL_SIGNATURES": ("security", "verify_model_signatures", bool),
             "SANDBOX_EXECUTION": ("security", "sandbox_execution", bool),
-            
+
             # Performance Configuration
             "NUMPY_THREADS": ("performance", "numpy_threads", int),
             "MAX_MEMORY_GB": ("performance", "max_memory_gb", float),
             "MAX_CPU_CORES": ("performance", "max_cpu_cores", int),
-            
+
             # Network Configuration
             "API_BASE_URL": ("network", "api_base_url"),
             "API_KEY": ("network", "api_key"),
@@ -285,24 +286,24 @@ class ConfigManager:
             "LEADERBOARD_ENABLED": ("network", "leaderboard_enabled", bool),
             "HTTP_PROXY": ("network", "http_proxy"),
             "HTTPS_PROXY": ("network", "https_proxy"),
-            
+
             # Experimental Configuration
             "ENABLE_EXPERIMENTAL_FEATURES": ("experimental", "enable_experimental_features", bool),
             "AUTO_OPTIMIZATION": ("experimental", "auto_optimization", bool),
             "PARALLEL_BENCHMARKING": ("experimental", "parallel_benchmarking", bool),
         }
-        
+
         for env_var, config_path in env_mappings.items():
             value = os.getenv(env_var)
             if value is not None:
                 self._set_config_value(config_path, value)
-    
+
     def _set_config_value(self, config_path: tuple, value: str) -> None:
         """Set configuration value from environment variable."""
         section = config_path[0]
         key = config_path[1]
         type_converter = config_path[2] if len(config_path) > 2 else str
-        
+
         # Convert string value to appropriate type
         if type_converter == bool:
             converted_value = value.lower() in ('true', '1', 'yes', 'on')
@@ -312,11 +313,11 @@ class ConfigManager:
             converted_value = float(value)
         else:
             converted_value = value
-        
+
         # Set the value in the configuration
         section_obj = getattr(self._config, section)
         setattr(section_obj, key, converted_value)
-    
+
     def _update_config_from_dict(self, data: Dict[str, Any]) -> None:
         """Update configuration from dictionary data."""
         for section_name, section_data in data.items():
@@ -325,36 +326,36 @@ class ConfigManager:
                 for key, value in section_data.items():
                     if hasattr(section_obj, key):
                         setattr(section_obj, key, value)
-    
+
     def _apply_overrides(self) -> None:
         """Apply any additional configuration overrides."""
         # This method can be extended to handle command-line arguments
         # or other runtime configuration sources
         pass
-    
+
     @property
     def config(self) -> BenchmarkSuiteConfig:
         """Get the current configuration."""
         return self._config
-    
+
     def get_section(self, section_name: str):
         """Get a specific configuration section."""
         return getattr(self._config, section_name, None)
-    
+
     def update_config(self, updates: Dict[str, Any]) -> None:
         """Update configuration with new values."""
         self._update_config_from_dict(updates)
         logger.info("Configuration updated")
-    
+
     def validate_config(self) -> List[str]:
         """Validate configuration and return list of issues."""
         issues = []
-        
+
         # Validate TPU configuration
         tpu_device = Path(self.config.tpu.device_path)
         if not self.config.tpu.enable_simulation and not tpu_device.exists():
             issues.append(f"TPU device not found: {self.config.tpu.device_path}")
-        
+
         # Validate directories
         for dir_path in [
             self.config.model.cache_dir,
@@ -366,23 +367,23 @@ class ConfigManager:
                 expanded_path.mkdir(parents=True, exist_ok=True)
             except Exception as e:
                 issues.append(f"Cannot create directory {dir_path}: {e}")
-        
+
         # Validate numeric ranges
         if self.config.benchmark.default_iterations < 1:
             issues.append("default_iterations must be >= 1")
-        
+
         if self.config.benchmark.confidence_level <= 0 or self.config.benchmark.confidence_level >= 1:
             issues.append("confidence_level must be between 0 and 1")
-        
+
         if self.config.model.cache_max_size_gb <= 0:
             issues.append("cache_max_size_gb must be > 0")
-        
+
         # Validate optimization level
         if not (1 <= self.config.model.default_optimization_level.value <= 3):
             issues.append("default_optimization_level must be 1, 2, or 3")
-        
+
         return issues
-    
+
     def setup_environment(self) -> None:
         """Setup environment based on configuration."""
         # Set performance-related environment variables
@@ -390,7 +391,7 @@ class ConfigManager:
         os.environ["OPENBLAS_NUM_THREADS"] = str(self.config.performance.openblas_num_threads)
         os.environ["MKL_NUM_THREADS"] = str(self.config.performance.mkl_num_threads)
         os.environ["OMP_NUM_THREADS"] = str(self.config.performance.omp_num_threads)
-        
+
         # Set proxy environment variables if configured
         if self.config.network.http_proxy:
             os.environ["HTTP_PROXY"] = self.config.network.http_proxy
@@ -398,7 +399,7 @@ class ConfigManager:
             os.environ["HTTPS_PROXY"] = self.config.network.https_proxy
         if self.config.network.no_proxy:
             os.environ["NO_PROXY"] = self.config.network.no_proxy
-        
+
         # Create necessary directories
         for dir_path in [
             self.config.model.cache_dir,
@@ -406,13 +407,13 @@ class ConfigManager:
             self.config.reporting.results_dir
         ]:
             Path(dir_path).expanduser().mkdir(parents=True, exist_ok=True)
-        
+
         logger.info("Environment setup completed")
-    
+
     def get_effective_config(self) -> Dict[str, Any]:
         """Get the effective configuration with all sources merged."""
         return self.config.to_dict()
-    
+
     def save_config(self, path: Union[str, Path], format: str = "yaml") -> None:
         """Save current configuration to file."""
         self.config.save(path, format)

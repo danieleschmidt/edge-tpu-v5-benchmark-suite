@@ -3,12 +3,12 @@
 import asyncio
 import json
 import logging
-from typing import Dict, List, Optional, Any, Set, Tuple
-from dataclasses import dataclass, field
+import time
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-import time
-from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional, Tuple
+
 # Optional AWS integration
 try:
     import boto3
@@ -21,13 +21,13 @@ except ImportError:
     requests = None
 from datetime import datetime, timezone
 
-from .quantum_i18n import SupportedLanguage, Region, LocalizationConfig
+from .quantum_i18n import SupportedLanguage
 
 
 class DeploymentRegion(Enum):
     """Global deployment regions."""
     US_EAST_1 = "us-east-1"
-    US_WEST_2 = "us-west-2" 
+    US_WEST_2 = "us-west-2"
     EU_WEST_1 = "eu-west-1"
     EU_CENTRAL_1 = "eu-central-1"
     ASIA_SOUTHEAST_1 = "ap-southeast-1"
@@ -55,28 +55,28 @@ class RegionConfig:
     encryption_at_rest: bool = True
     encryption_in_transit: bool = True
     audit_logging: bool = True
-    
+
     # Performance and capacity settings
     max_concurrent_benchmarks: int = 100
     timeout_seconds: int = 300
     retry_attempts: int = 3
-    
+
     # Regional endpoints
     endpoint_url: Optional[str] = None
     cdn_endpoint: Optional[str] = None
-    
+
     def __post_init__(self):
         """Configure regional defaults."""
         if not self.endpoint_url:
             self.endpoint_url = f"https://tpu-bench-{self.region.value}.terragonlabs.com"
-        
+
         if not self.cdn_endpoint:
             self.cdn_endpoint = f"https://cdn-{self.region.value}.terragonlabs.com"
 
 
 class GlobalBenchmarkOrchestrator:
     """Orchestrates TPU benchmarks across global regions."""
-    
+
     def __init__(self, config_path: Optional[Path] = None):
         """Initialize global orchestrator.
         
@@ -87,13 +87,13 @@ class GlobalBenchmarkOrchestrator:
         self.regions: Dict[DeploymentRegion, RegionConfig] = {}
         self.active_benchmarks: Dict[str, Dict[str, Any]] = {}
         self.compliance_manager = ComplianceManager()
-        
+
         # Load configuration
         if config_path and config_path.exists():
             self._load_configuration(config_path)
         else:
             self._setup_default_regions()
-    
+
     def _setup_default_regions(self) -> None:
         """Setup default regional configurations."""
         region_configs = {
@@ -104,17 +104,17 @@ class GlobalBenchmarkOrchestrator:
                 compliance_frameworks=[ComplianceFramework.CCPA],
                 max_concurrent_benchmarks=200
             ),
-            
+
             DeploymentRegion.EU_WEST_1: RegionConfig(
                 region=DeploymentRegion.EU_WEST_1,
                 primary_language=SupportedLanguage.ENGLISH,
-                supported_languages=[SupportedLanguage.ENGLISH, SupportedLanguage.GERMAN, 
+                supported_languages=[SupportedLanguage.ENGLISH, SupportedLanguage.GERMAN,
                                    SupportedLanguage.FRENCH, SupportedLanguage.ITALIAN],
                 compliance_frameworks=[ComplianceFramework.GDPR],
                 data_residency_required=True,
                 max_concurrent_benchmarks=150
             ),
-            
+
             DeploymentRegion.ASIA_SOUTHEAST_1: RegionConfig(
                 region=DeploymentRegion.ASIA_SOUTHEAST_1,
                 primary_language=SupportedLanguage.ENGLISH,
@@ -124,23 +124,23 @@ class GlobalBenchmarkOrchestrator:
                 max_concurrent_benchmarks=100
             )
         }
-        
+
         self.regions = region_configs
-    
+
     def _load_configuration(self, config_path: Path) -> None:
         """Load configuration from file."""
         try:
             with open(config_path) as f:
                 config_data = json.load(f)
-            
+
             for region_data in config_data.get("regions", []):
                 region_config = RegionConfig(**region_data)
                 self.regions[region_config.region] = region_config
-                
+
         except Exception as e:
             self.logger.error(f"Failed to load configuration: {e}")
             self._setup_default_regions()
-    
+
     async def deploy_benchmark_globally(
         self,
         benchmark_config: Dict[str, Any],
@@ -159,30 +159,30 @@ class GlobalBenchmarkOrchestrator:
         """
         if target_regions is None:
             target_regions = list(self.regions.keys())
-        
+
         # Validate compliance requirements
         compliance_check = await self.compliance_manager.validate_deployment(
             benchmark_config, target_regions
         )
-        
+
         if not compliance_check["valid"]:
             raise ValueError(f"Compliance validation failed: {compliance_check['issues']}")
-        
+
         # Create deployment tasks
         deployment_tasks = []
-        
+
         for region in target_regions:
             if region in self.regions:
                 task = self._deploy_to_region(
-                    benchmark_config, 
-                    self.regions[region], 
+                    benchmark_config,
+                    self.regions[region],
                     language_preference
                 )
                 deployment_tasks.append(task)
-        
+
         # Execute deployments concurrently
         results = await asyncio.gather(*deployment_tasks, return_exceptions=True)
-        
+
         # Aggregate results
         deployment_results = {
             "deployment_id": f"global-{int(time.time())}",
@@ -197,7 +197,7 @@ class GlobalBenchmarkOrchestrator:
                 "compliance_status": "validated"
             }
         }
-        
+
         for i, result in enumerate(results):
             region = target_regions[i]
             if isinstance(result, Exception):
@@ -210,9 +210,9 @@ class GlobalBenchmarkOrchestrator:
                 deployment_results["regional_results"][region.value] = result
                 deployment_results["summary"]["successful_deployments"] += 1
                 deployment_results["summary"]["total_benchmarks"] += result.get("benchmarks_executed", 0)
-        
+
         return deployment_results
-    
+
     async def _deploy_to_region(
         self,
         benchmark_config: Dict[str, Any],
@@ -234,17 +234,17 @@ class GlobalBenchmarkOrchestrator:
             localized_config = await self._localize_config(
                 benchmark_config, region_config, language
             )
-            
+
             # Execute benchmarks with regional settings
             benchmark_results = await self._execute_regional_benchmark(
                 localized_config, region_config
             )
-            
+
             # Apply regional compliance transformations
             compliant_results = await self.compliance_manager.apply_regional_compliance(
                 benchmark_results, region_config
             )
-            
+
             return {
                 "status": "success",
                 "region": region_config.region.value,
@@ -254,11 +254,11 @@ class GlobalBenchmarkOrchestrator:
                 "compliance_applied": compliant_results.get("compliance_transformations", []),
                 "results": compliant_results
             }
-            
+
         except Exception as e:
             self.logger.error(f"Regional deployment failed for {region_config.region.value}: {e}")
             raise
-    
+
     async def _localize_config(
         self,
         config: Dict[str, Any],
@@ -267,7 +267,7 @@ class GlobalBenchmarkOrchestrator:
     ) -> Dict[str, Any]:
         """Localize configuration for region and language."""
         localized_config = config.copy()
-        
+
         # Apply regional settings
         localized_config.update({
             "region": region_config.region.value,
@@ -277,9 +277,9 @@ class GlobalBenchmarkOrchestrator:
             "timeout_seconds": region_config.timeout_seconds,
             "endpoint_url": region_config.endpoint_url
         })
-        
+
         return localized_config
-    
+
     async def _execute_regional_benchmark(
         self,
         config: Dict[str, Any],
@@ -289,12 +289,12 @@ class GlobalBenchmarkOrchestrator:
         # This would integrate with the actual benchmark execution
         # For now, simulate execution
         execution_start = time.time()
-        
+
         # Simulate benchmark execution
         await asyncio.sleep(0.1)  # Simulate processing time
-        
+
         execution_time = time.time() - execution_start
-        
+
         return {
             "total_benchmarks": config.get("iterations", 100),
             "total_duration": execution_time,
@@ -308,11 +308,11 @@ class GlobalBenchmarkOrchestrator:
 
 class ComplianceManager:
     """Manages data protection and compliance across regions."""
-    
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.compliance_rules = self._load_compliance_rules()
-    
+
     def _load_compliance_rules(self) -> Dict[str, Dict[str, Any]]:
         """Load compliance rules for different frameworks."""
         return {
@@ -325,7 +325,7 @@ class ComplianceManager:
                 "prohibited_data_types": ["biometric", "genetic", "health"],
                 "retention_max_days": 365
             },
-            
+
             ComplianceFramework.CCPA.value: {
                 "data_anonymization_required": False,
                 "right_to_deletion": True,
@@ -334,7 +334,7 @@ class ComplianceManager:
                 "prohibited_data_types": [],
                 "retention_max_days": 730
             },
-            
+
             ComplianceFramework.PDPA.value: {
                 "data_anonymization_required": True,
                 "consent_tracking": True,
@@ -344,7 +344,7 @@ class ComplianceManager:
                 "retention_max_days": 365
             }
         }
-    
+
     async def validate_deployment(
         self,
         benchmark_config: Dict[str, Any],
@@ -365,19 +365,19 @@ class ComplianceManager:
             "warnings": [],
             "required_transformations": []
         }
-        
+
         # Check each region's compliance requirements
         for region in target_regions:
             region_issues = self._validate_region_compliance(
                 benchmark_config, region
             )
-            
+
             if region_issues:
                 validation_result["valid"] = False
                 validation_result["issues"].extend(region_issues)
-        
+
         return validation_result
-    
+
     def _validate_region_compliance(
         self,
         config: Dict[str, Any],
@@ -385,12 +385,12 @@ class ComplianceManager:
     ) -> List[str]:
         """Validate compliance for specific region."""
         issues = []
-        
+
         # This would implement actual compliance validation logic
         # For now, return empty (all validations pass)
-        
+
         return issues
-    
+
     async def apply_regional_compliance(
         self,
         results: Dict[str, Any],
@@ -407,31 +407,31 @@ class ComplianceManager:
         """
         transformed_results = results.copy()
         applied_transformations = []
-        
+
         for framework in region_config.compliance_frameworks:
             if framework == ComplianceFramework.GDPR:
                 # Apply GDPR transformations
                 transformed_results = self._apply_gdpr_compliance(transformed_results)
                 applied_transformations.append("GDPR_data_minimization")
                 applied_transformations.append("GDPR_anonymization")
-                
+
             elif framework == ComplianceFramework.CCPA:
                 # Apply CCPA transformations
                 transformed_results = self._apply_ccpa_compliance(transformed_results)
                 applied_transformations.append("CCPA_disclosure_tracking")
-                
+
             elif framework == ComplianceFramework.PDPA:
                 # Apply PDPA transformations
                 transformed_results = self._apply_pdpa_compliance(transformed_results)
                 applied_transformations.append("PDPA_consent_validation")
-        
+
         transformed_results["compliance_transformations"] = applied_transformations
         return transformed_results
-    
+
     def _apply_gdpr_compliance(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Apply GDPR compliance transformations."""
         gdpr_results = results.copy()
-        
+
         # Remove or anonymize personal identifiers
         if "system_info" in gdpr_results:
             system_info = gdpr_results["system_info"]
@@ -440,7 +440,7 @@ class ComplianceManager:
                 system_info["hostname"] = "anonymized-host"
             if "user" in system_info:
                 system_info["user"] = "anonymized-user"
-        
+
         # Add GDPR metadata
         gdpr_results["gdpr_metadata"] = {
             "data_minimized": True,
@@ -448,13 +448,13 @@ class ComplianceManager:
             "retention_date": (datetime.now(timezone.utc).timestamp() + 31536000),  # 1 year
             "legal_basis": "legitimate_interest"
         }
-        
+
         return gdpr_results
-    
+
     def _apply_ccpa_compliance(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Apply CCPA compliance transformations."""
         ccpa_results = results.copy()
-        
+
         # Add CCPA metadata
         ccpa_results["ccpa_metadata"] = {
             "data_disclosed": True,
@@ -462,13 +462,13 @@ class ComplianceManager:
             "deletion_rights": True,
             "categories_collected": ["performance_metrics", "system_metrics"]
         }
-        
+
         return ccpa_results
-    
+
     def _apply_pdpa_compliance(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Apply PDPA compliance transformations."""
         pdpa_results = results.copy()
-        
+
         # Add PDPA metadata
         pdpa_results["pdpa_metadata"] = {
             "consent_obtained": True,
@@ -476,18 +476,18 @@ class ComplianceManager:
             "cross_border_approval": True,
             "notification_authority": "singapore_pdpc"
         }
-        
+
         return pdpa_results
 
 
 class MultiRegionLoadBalancer:
     """Load balancer for distributing benchmarks across regions."""
-    
+
     def __init__(self, regions: Dict[DeploymentRegion, RegionConfig]):
         self.regions = regions
         self.region_health = {}
         self.logger = logging.getLogger(__name__)
-    
+
     async def get_optimal_region(
         self,
         user_location: Optional[Tuple[float, float]] = None,
@@ -504,18 +504,18 @@ class MultiRegionLoadBalancer:
         """
         # Update region health status
         await self._update_region_health()
-        
+
         # Score regions based on multiple factors
         region_scores = {}
-        
+
         for region, config in self.regions.items():
             score = 0
-            
+
             # Health check score (0-40 points)
             health = self.region_health.get(region, {"healthy": True, "load": 0.5})
             if health["healthy"]:
                 score += 40 - (health["load"] * 20)  # Lower load = higher score
-            
+
             # Capacity score (0-30 points)
             if config.max_concurrent_benchmarks > 100:
                 score += 30
@@ -523,22 +523,22 @@ class MultiRegionLoadBalancer:
                 score += 20
             else:
                 score += 10
-            
+
             # Geographic proximity score (0-30 points)
             if user_location:
                 distance_score = self._calculate_geographic_score(region, user_location)
                 score += distance_score
             else:
                 score += 15  # Neutral score if no location provided
-            
+
             region_scores[region] = score
-        
+
         # Return region with highest score
         optimal_region = max(region_scores.items(), key=lambda x: x[1])[0]
         self.logger.info(f"Selected optimal region: {optimal_region.value} (score: {region_scores[optimal_region]})")
-        
+
         return optimal_region
-    
+
     async def _update_region_health(self) -> None:
         """Update health status for all regions."""
         for region in self.regions:
@@ -558,10 +558,10 @@ class MultiRegionLoadBalancer:
                     "latency_ms": 9999,
                     "last_check": time.time()
                 }
-    
+
     def _calculate_geographic_score(
-        self, 
-        region: DeploymentRegion, 
+        self,
+        region: DeploymentRegion,
         user_location: Tuple[float, float]
     ) -> int:
         """Calculate geographic proximity score."""
@@ -574,16 +574,16 @@ class MultiRegionLoadBalancer:
             DeploymentRegion.ASIA_SOUTHEAST_1: (1.0, 103.0), # Singapore
             DeploymentRegion.ASIA_NORTHEAST_1: (35.0, 139.0), # Tokyo
         }
-        
+
         if region not in region_centers:
             return 15  # Neutral score
-        
+
         region_lat, region_lon = region_centers[region]
         user_lat, user_lon = user_location
-        
+
         # Simple distance calculation (not geodesic, but sufficient for scoring)
         distance = ((region_lat - user_lat) ** 2 + (region_lon - user_lon) ** 2) ** 0.5
-        
+
         # Convert distance to score (closer = higher score)
         if distance < 20:
             return 30

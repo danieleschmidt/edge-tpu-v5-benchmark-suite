@@ -1,15 +1,13 @@
 """Health check and system diagnostics for TPU v5 benchmark suite."""
 
-from typing import Dict, Any, List, Optional, Callable
+import json
+import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from pathlib import Path
-import time
-import logging
 from enum import Enum
-import threading
-import subprocess
-import json
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 class HealthStatus(Enum):
@@ -29,7 +27,7 @@ class HealthCheckResult:
     details: Dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
     duration_ms: float = 0.0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -48,7 +46,7 @@ class SystemHealth:
     overall_status: HealthStatus
     checks: List[HealthCheckResult]
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -67,16 +65,16 @@ class SystemHealth:
 
 class HealthChecker:
     """Base class for health checks."""
-    
+
     def __init__(self, name: str, timeout: float = 5.0):
         self.name = name
         self.timeout = timeout
         self.logger = logging.getLogger(__name__)
-    
+
     def check(self) -> HealthCheckResult:
         """Perform health check."""
         start_time = time.time()
-        
+
         try:
             result = self._perform_check()
             result.duration_ms = (time.time() - start_time) * 1000
@@ -84,7 +82,7 @@ class HealthChecker:
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             self.logger.error(f"Health check '{self.name}' failed: {e}")
-            
+
             return HealthCheckResult(
                 name=self.name,
                 status=HealthStatus.CRITICAL,
@@ -92,7 +90,7 @@ class HealthChecker:
                 duration_ms=duration_ms,
                 details={"error": str(e)}
             )
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Override this method to implement specific health check."""
         raise NotImplementedError
@@ -100,15 +98,15 @@ class HealthChecker:
 
 class TPUDeviceHealthChecker(HealthChecker):
     """Health checker for TPU device availability."""
-    
+
     def __init__(self, device_path: str = "/dev/apex_0"):
         super().__init__("tpu_device")
         self.device_path = device_path
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Check TPU device health."""
         device_file = Path(self.device_path)
-        
+
         if not device_file.exists():
             return HealthCheckResult(
                 name=self.name,
@@ -119,7 +117,7 @@ class TPUDeviceHealthChecker(HealthChecker):
                     "simulation_mode": True
                 }
             )
-        
+
         # Check device permissions
         if not device_file.stat().st_mode & 0o444:
             return HealthCheckResult(
@@ -131,7 +129,7 @@ class TPUDeviceHealthChecker(HealthChecker):
                     "permissions": oct(device_file.stat().st_mode)
                 }
             )
-        
+
         # Try to get device information
         try:
             # Simulate device info check
@@ -141,7 +139,7 @@ class TPUDeviceHealthChecker(HealthChecker):
                 "temperature": 45.2,
                 "utilization": 0.0
             }
-            
+
             return HealthCheckResult(
                 name=self.name,
                 status=HealthStatus.HEALTHY,
@@ -151,7 +149,7 @@ class TPUDeviceHealthChecker(HealthChecker):
                     "device_info": device_info
                 }
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -166,29 +164,29 @@ class TPUDeviceHealthChecker(HealthChecker):
 
 class SystemResourcesHealthChecker(HealthChecker):
     """Health checker for system resources."""
-    
+
     def __init__(self):
         super().__init__("system_resources")
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Check system resource health."""
         try:
             # Simulate system resource check
             import random
-            
+
             # Memory check
             memory_usage = random.uniform(30, 85)
             disk_usage = random.uniform(20, 80)
             cpu_load = random.uniform(0.5, 2.0)
             temperature = random.uniform(35, 75)
-            
+
             details = {
                 "memory_usage_percent": memory_usage,
                 "disk_usage_percent": disk_usage,
                 "cpu_load_average": cpu_load,
                 "temperature_celsius": temperature
             }
-            
+
             # Determine status based on resource usage
             if memory_usage > 90 or disk_usage > 95 or temperature > 85:
                 status = HealthStatus.CRITICAL
@@ -199,14 +197,14 @@ class SystemResourcesHealthChecker(HealthChecker):
             else:
                 status = HealthStatus.HEALTHY
                 message = "System resources are healthy"
-            
+
             return HealthCheckResult(
                 name=self.name,
                 status=status,
                 message=message,
                 details=details
             )
-            
+
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -218,7 +216,7 @@ class SystemResourcesHealthChecker(HealthChecker):
 
 class DependencyHealthChecker(HealthChecker):
     """Health checker for required dependencies."""
-    
+
     def __init__(self):
         super().__init__("dependencies")
         self.required_deps = [
@@ -229,34 +227,34 @@ class DependencyHealthChecker(HealthChecker):
             ("click", "8.0.0"),
             ("rich", "12.0.0")
         ]
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Check dependency health."""
         missing_deps = []
         outdated_deps = []
         available_deps = []
-        
+
         for dep_name, min_version in self.required_deps:
             try:
                 # Simulate dependency check
                 # In real implementation, use importlib and pkg_resources
                 import random
-                
+
                 if random.random() > 0.1:  # 90% chance dependency is available
                     available_deps.append(dep_name)
                 else:
                     missing_deps.append(dep_name)
-                    
+
             except ImportError:
                 missing_deps.append(dep_name)
-        
+
         details = {
             "required_dependencies": len(self.required_deps),
             "available_dependencies": len(available_deps),
             "missing_dependencies": missing_deps,
             "outdated_dependencies": outdated_deps
         }
-        
+
         if missing_deps:
             return HealthCheckResult(
                 name=self.name,
@@ -282,7 +280,7 @@ class DependencyHealthChecker(HealthChecker):
 
 class NetworkHealthChecker(HealthChecker):
     """Health checker for network connectivity."""
-    
+
     def __init__(self):
         super().__init__("network")
         self.test_urls = [
@@ -290,29 +288,29 @@ class NetworkHealthChecker(HealthChecker):
             "https://pypi.org",
             "https://google.com"
         ]
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Check network connectivity."""
         try:
             # Simulate network connectivity check
             import random
-            
+
             reachable_urls = []
             unreachable_urls = []
-            
+
             for url in self.test_urls:
                 if random.random() > 0.1:  # 90% success rate
                     reachable_urls.append(url)
                 else:
                     unreachable_urls.append(url)
-            
+
             details = {
                 "tested_urls": len(self.test_urls),
                 "reachable_urls": reachable_urls,
                 "unreachable_urls": unreachable_urls,
                 "success_rate": len(reachable_urls) / len(self.test_urls)
             }
-            
+
             if len(reachable_urls) == 0:
                 return HealthCheckResult(
                     name=self.name,
@@ -334,7 +332,7 @@ class NetworkHealthChecker(HealthChecker):
                     message="Network connectivity is healthy",
                     details=details
                 )
-                
+
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -346,11 +344,11 @@ class NetworkHealthChecker(HealthChecker):
 
 class ConfigurationHealthChecker(HealthChecker):
     """Health checker for configuration validity."""
-    
+
     def __init__(self, config_path: Optional[Path] = None):
         super().__init__("configuration")
         self.config_path = config_path
-    
+
     def _perform_check(self) -> HealthCheckResult:
         """Check configuration health."""
         try:
@@ -360,20 +358,20 @@ class ConfigurationHealthChecker(HealthChecker):
                 "required_settings": [],
                 "missing_settings": []
             }
-            
+
             # Simulate configuration validation
             required_settings = ["log_level", "device_path", "benchmark_timeout"]
             missing_settings = []
-            
+
             # In real implementation, check actual configuration
             import random
             for setting in required_settings:
                 if random.random() < 0.1:  # 10% chance of missing setting
                     missing_settings.append(setting)
-            
+
             details["required_settings"] = required_settings
             details["missing_settings"] = missing_settings
-            
+
             if missing_settings:
                 return HealthCheckResult(
                     name=self.name,
@@ -388,7 +386,7 @@ class ConfigurationHealthChecker(HealthChecker):
                     message="Configuration is valid",
                     details=details
                 )
-                
+
         except Exception as e:
             return HealthCheckResult(
                 name=self.name,
@@ -400,17 +398,17 @@ class ConfigurationHealthChecker(HealthChecker):
 
 class HealthMonitor:
     """Comprehensive health monitoring system."""
-    
+
     def __init__(self):
         self.checkers: List[HealthChecker] = []
         self.last_check: Optional[SystemHealth] = None
         self.check_history: List[SystemHealth] = []
         self.max_history = 100
         self.logger = logging.getLogger(__name__)
-        
+
         # Setup default health checkers
         self._setup_default_checkers()
-    
+
     def _setup_default_checkers(self):
         """Setup default health checkers."""
         self.checkers = [
@@ -420,47 +418,47 @@ class HealthMonitor:
             NetworkHealthChecker(),
             ConfigurationHealthChecker()
         ]
-    
+
     def add_checker(self, checker: HealthChecker):
         """Add a custom health checker."""
         self.checkers.append(checker)
         self.logger.info(f"Added health checker: {checker.name}")
-    
+
     def remove_checker(self, name: str):
         """Remove a health checker by name."""
         self.checkers = [c for c in self.checkers if c.name != name]
         self.logger.info(f"Removed health checker: {name}")
-    
+
     def check_health(self, parallel: bool = True) -> SystemHealth:
         """Perform comprehensive health check."""
         self.logger.info("Starting health check")
         start_time = time.time()
-        
+
         if parallel:
             results = self._run_checks_parallel()
         else:
             results = self._run_checks_sequential()
-        
+
         # Determine overall status
         overall_status = self._determine_overall_status(results)
-        
+
         # Create system health object
         system_health = SystemHealth(
             overall_status=overall_status,
             checks=results
         )
-        
+
         # Update history
         self.last_check = system_health
         self.check_history.append(system_health)
         if len(self.check_history) > self.max_history:
             self.check_history.pop(0)
-        
+
         duration = time.time() - start_time
         self.logger.info(f"Health check completed in {duration:.2f}s - Status: {overall_status.value}")
-        
+
         return system_health
-    
+
     def _run_checks_sequential(self) -> List[HealthCheckResult]:
         """Run health checks sequentially."""
         results = []
@@ -477,19 +475,19 @@ class HealthMonitor:
                     details={"error": str(e)}
                 ))
         return results
-    
+
     def _run_checks_parallel(self) -> List[HealthCheckResult]:
         """Run health checks in parallel using threads."""
         import concurrent.futures
-        
+
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(self.checkers)) as executor:
             # Submit all checks
             future_to_checker = {
-                executor.submit(checker.check): checker 
+                executor.submit(checker.check): checker
                 for checker in self.checkers
             }
-            
+
             # Collect results
             for future in concurrent.futures.as_completed(future_to_checker):
                 checker = future_to_checker[future]
@@ -504,21 +502,21 @@ class HealthMonitor:
                         message=f"Checker failed: {e}",
                         details={"error": str(e)}
                     ))
-        
+
         # Sort results by checker name for consistency
         results.sort(key=lambda r: r.name)
         return results
-    
+
     def _determine_overall_status(self, results: List[HealthCheckResult]) -> HealthStatus:
         """Determine overall system health status."""
         if not results:
             return HealthStatus.UNKNOWN
-        
+
         # Count statuses
         status_counts = {}
         for result in results:
             status_counts[result.status] = status_counts.get(result.status, 0) + 1
-        
+
         # Determine overall status based on priority
         if status_counts.get(HealthStatus.CRITICAL, 0) > 0:
             return HealthStatus.CRITICAL
@@ -528,12 +526,12 @@ class HealthMonitor:
             return HealthStatus.HEALTHY
         else:
             return HealthStatus.UNKNOWN
-    
+
     def get_health_summary(self) -> Dict[str, Any]:
         """Get health summary information."""
         if not self.last_check:
             return {"status": "unknown", "message": "No health checks performed yet"}
-        
+
         return {
             "status": self.last_check.overall_status.value,
             "timestamp": self.last_check.timestamp.isoformat(),
@@ -543,12 +541,12 @@ class HealthMonitor:
             "critical_checks": len([c for c in self.last_check.checks if c.status == HealthStatus.CRITICAL]),
             "message": self._get_health_message()
         }
-    
+
     def _get_health_message(self) -> str:
         """Get human-readable health message."""
         if not self.last_check:
             return "Health status unknown"
-        
+
         if self.last_check.overall_status == HealthStatus.HEALTHY:
             return "All systems healthy"
         elif self.last_check.overall_status == HealthStatus.WARNING:
@@ -557,24 +555,24 @@ class HealthMonitor:
             return "Critical issues detected"
         else:
             return "Health status unknown"
-    
+
     def get_health_trends(self, hours: int = 24) -> Dict[str, Any]:
         """Get health trends over time."""
         cutoff_time = datetime.now() - timedelta(hours=hours)
         recent_checks = [
-            check for check in self.check_history 
+            check for check in self.check_history
             if check.timestamp >= cutoff_time
         ]
-        
+
         if not recent_checks:
             return {"message": "No recent health data available"}
-        
+
         # Calculate trends
         status_distribution = {}
         for check in recent_checks:
             status = check.overall_status.value
             status_distribution[status] = status_distribution.get(status, 0) + 1
-        
+
         return {
             "period_hours": hours,
             "total_checks": len(recent_checks),
@@ -582,12 +580,12 @@ class HealthMonitor:
             "latest_status": recent_checks[-1].overall_status.value,
             "trend": self._calculate_trend(recent_checks)
         }
-    
+
     def _calculate_trend(self, checks: List[SystemHealth]) -> str:
         """Calculate health trend direction."""
         if len(checks) < 2:
             return "stable"
-        
+
         # Simple trend calculation based on status values
         status_values = {
             HealthStatus.HEALTHY: 3,
@@ -595,22 +593,22 @@ class HealthMonitor:
             HealthStatus.CRITICAL: 1,
             HealthStatus.UNKNOWN: 0
         }
-        
+
         recent_scores = [status_values[check.overall_status] for check in checks[-5:]]
-        
+
         if len(recent_scores) < 2:
             return "stable"
-        
+
         avg_recent = sum(recent_scores) / len(recent_scores)
         avg_older = sum(recent_scores[:-2]) / len(recent_scores[:-2]) if len(recent_scores) > 2 else avg_recent
-        
+
         if avg_recent > avg_older:
             return "improving"
         elif avg_recent < avg_older:
             return "degrading"
         else:
             return "stable"
-    
+
     def export_health_report(self, output_path: Path):
         """Export comprehensive health report."""
         report = {
@@ -620,11 +618,11 @@ class HealthMonitor:
             "health_trends": self.get_health_trends(),
             "check_history": [check.to_dict() for check in self.check_history[-10:]]  # Last 10 checks
         }
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(report, f, indent=2)
-        
+
         self.logger.info(f"Health report exported to {output_path}")
 
 

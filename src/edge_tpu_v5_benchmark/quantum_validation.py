@@ -5,26 +5,26 @@ enhanced with circuit breakers, retry mechanisms, and structured logging.
 """
 
 import logging
-import traceback
-import threading
-import asyncio
-from typing import Dict, List, Set, Optional, Any, Tuple, Callable
-from dataclasses import dataclass, field
-from enum import Enum
 import re
+import threading
 import time
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
-from .quantum_planner import QuantumTask, QuantumResource, QuantumState
 from .exceptions import (
-    BenchmarkError, QuantumError, QuantumValidationError, 
-    QuantumCircuitBreakerError, QuantumRetryExhaustedError,
-    ErrorContext, handle_quantum_error, quantum_operation,
-    validate_input, CircuitBreaker, CircuitBreakerConfig,
-    RetryManager, RetryConfig,
-    ErrorHandlingContext, AsyncErrorHandlingContext
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    ErrorHandlingContext,
+    QuantumCircuitBreakerError,
+    QuantumValidationError,
+    RetryConfig,
+    RetryManager,
+    quantum_operation,
+    validate_input,
 )
-from .security import InputValidator, DataSanitizer
+from .quantum_planner import QuantumResource, QuantumState, QuantumTask
 
 # Configure structured logging for validation
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ if not logger.handlers:
 class ValidationSeverity(Enum):
     """Validation issue severity levels"""
     INFO = "info"
-    WARNING = "warning" 
+    WARNING = "warning"
     ERROR = "error"
     CRITICAL = "critical"
 
@@ -62,7 +62,7 @@ class ValidationIssue:
     rule_name: Optional[str] = None
     context_data: Dict[str, Any] = field(default_factory=dict)
     recovery_actions: List[str] = field(default_factory=list)
-    
+
     def __str__(self) -> str:
         parts = [f"[{self.severity.value.upper()}] {self.code}: {self.message}"]
         if self.task_id:
@@ -74,7 +74,7 @@ class ValidationIssue:
         if self.suggestion:
             parts.append(f"Suggestion: {self.suggestion}")
         return " | ".join(parts)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         return {
@@ -91,7 +91,7 @@ class ValidationIssue:
         }
 
 
-@dataclass 
+@dataclass
 class ValidationReport:
     """Comprehensive validation report with enhanced analytics"""
     total_issues: int = 0
@@ -109,12 +109,12 @@ class ValidationReport:
     context: Optional[Dict[str, Any]] = None
     performance_metrics: Dict[str, float] = field(default_factory=dict)
     recovery_suggestions: List[str] = field(default_factory=list)
-    
+
     def add_issue(self, issue: ValidationIssue) -> None:
         """Add validation issue and update counters"""
         self.issues.append(issue)
         self.total_issues += 1
-        
+
         if issue.severity == ValidationSeverity.CRITICAL:
             self.critical_issues += 1
             self.is_valid = False
@@ -125,17 +125,17 @@ class ValidationReport:
             self.warning_issues += 1
         elif issue.severity == ValidationSeverity.INFO:
             self.info_issues += 1
-    
+
     def has_blocking_issues(self) -> bool:
         """Check if report has issues that block execution"""
         return self.critical_issues > 0 or self.error_issues > 0
-    
+
     def get_summary(self) -> Dict[str, int]:
         """Get summary of issues by severity"""
         return {
             "total": self.total_issues,
             "critical": self.critical_issues,
-            "errors": self.error_issues, 
+            "errors": self.error_issues,
             "warnings": self.warning_issues,
             "info": self.info_issues
         }
@@ -143,14 +143,14 @@ class ValidationReport:
 
 class QuantumTaskValidator:
     """Comprehensive quantum task validation system with resilience patterns"""
-    
+
     def __init__(self, enable_circuit_breaker: bool = True, max_validation_time: float = 30.0):
         self.validation_rules = {}
         self._lock = threading.RLock()
         self.validation_history = deque(maxlen=1000)
         self.rule_performance = defaultdict(lambda: {"total_time": 0.0, "executions": 0, "failures": 0})
         self.max_validation_time = max_validation_time
-        
+
         # Circuit breaker for validation system resilience
         if enable_circuit_breaker:
             cb_config = CircuitBreakerConfig(
@@ -162,7 +162,7 @@ class QuantumTaskValidator:
             self.circuit_breaker = CircuitBreaker(cb_config)
         else:
             self.circuit_breaker = None
-        
+
         # Retry manager for transient failures
         retry_config = RetryConfig(
             max_attempts=2,
@@ -172,16 +172,16 @@ class QuantumTaskValidator:
             retryable_exceptions=(QuantumValidationError,)
         )
         self.retry_manager = RetryManager(retry_config)
-        
+
         self._register_default_rules()
-        
+
         logger.info(
             "Quantum task validator initialized",
             extra={"component": "quantum_validator", "operation": "__init__",
                   "circuit_breaker_enabled": enable_circuit_breaker,
                   "max_validation_time": max_validation_time}
         )
-    
+
     def _register_default_rules(self) -> None:
         """Register default validation rules with metadata"""
         self.validation_rules = {
@@ -246,7 +246,7 @@ class QuantumTaskValidator:
                 "timeout": 0.5
             }
         }
-    
+
     @validate_input(
         lambda self, task, available_resources=None: hasattr(task, 'id'),
         "Invalid task object for validation"
@@ -256,20 +256,20 @@ class QuantumTaskValidator:
         """Validate individual quantum task with comprehensive error handling and resilience"""
         validation_start = time.time()
         task_id = getattr(task, 'id', 'unknown')
-        
+
         # Initialize report with enhanced metadata
         report = ValidationReport(
             validation_id=f"val_{int(validation_start)}_{task_id}",
             timestamp=validation_start
         )
-        
+
         with ErrorHandlingContext(
             component="quantum_validator",
             operation="validate_task",
             task_id=task_id,
             suppress_exceptions=True
         ) as error_ctx:
-            
+
             try:
                 with self._lock:
                     logger.info(
@@ -277,7 +277,7 @@ class QuantumTaskValidator:
                         extra={"component": "quantum_validator", "operation": "validate_task",
                               "task_id": task_id, "validation_id": report.validation_id}
                     )
-                    
+
                     # Validate task basic structure
                     if not self._validate_task_structure(task, report):
                         logger.error(
@@ -287,12 +287,12 @@ class QuantumTaskValidator:
                         )
                         report.validation_time = time.time() - validation_start
                         return report
-                    
+
                     # Apply circuit breaker if enabled
                     validation_func = self._execute_validation_rules
                     if self.circuit_breaker:
                         validation_func = self.circuit_breaker(validation_func)
-                    
+
                     # Execute validation with timeout
                     try:
                         validation_func(task, available_resources, report)
@@ -312,7 +312,7 @@ class QuantumTaskValidator:
                             recovery_actions=["Wait and retry", "Check validation system health"]
                         )
                         report.add_issue(error_issue)
-                    
+
                     # Calculate final metrics
                     report.validation_time = time.time() - validation_start
                     report.performance_metrics = {
@@ -320,11 +320,11 @@ class QuantumTaskValidator:
                         "rules_per_second": report.rules_executed / max(report.validation_time, 0.001),
                         "issues_per_rule": report.total_issues / max(report.rules_executed, 1)
                     }
-                    
+
                     # Generate recovery suggestions
                     if report.has_blocking_issues():
                         report.recovery_suggestions = self._generate_recovery_suggestions(report)
-                    
+
                     # Store validation history
                     self.validation_history.append({
                         "validation_id": report.validation_id,
@@ -334,7 +334,7 @@ class QuantumTaskValidator:
                         "validation_time": report.validation_time,
                         "is_valid": report.is_valid
                     })
-                    
+
                     logger.info(
                         f"Validation completed for task {task_id}: "
                         f"{report.total_issues} issues ({report.critical_issues} critical, {report.error_issues} errors)",
@@ -342,9 +342,9 @@ class QuantumTaskValidator:
                               "task_id": task_id, "validation_time": report.validation_time,
                               "total_issues": report.total_issues, "is_valid": report.is_valid}
                     )
-                    
+
                     return report
-                    
+
             except Exception as e:
                 # Handle unexpected validation failures
                 logger.critical(
@@ -352,7 +352,7 @@ class QuantumTaskValidator:
                     extra={"component": "quantum_validator", "operation": "validate_task",
                           "task_id": task_id, "error": str(e)}
                 )
-                
+
                 critical_issue = ValidationIssue(
                     severity=ValidationSeverity.CRITICAL,
                     code="VALIDATION_SYSTEM_FAILURE",
@@ -364,10 +364,10 @@ class QuantumTaskValidator:
                 )
                 report.add_issue(critical_issue)
                 report.rules_failed += 1
-                
+
                 report.validation_time = time.time() - validation_start
                 return report
-    
+
     def _validate_task_structure(self, task: QuantumTask, report: ValidationReport) -> bool:
         """Validate basic task structure before running rules"""
         try:
@@ -385,33 +385,33 @@ class QuantumTaskValidator:
                     )
                     report.add_issue(issue)
                     return False
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(
                 f"Error in task structure validation: {e}",
                 extra={"component": "quantum_validator", "operation": "_validate_task_structure"}
             )
             return False
-    
+
     def _execute_validation_rules(self, task: QuantumTask, available_resources: Optional[Dict[str, QuantumResource]], report: ValidationReport) -> None:
         """Execute all validation rules with individual error handling"""
         for rule_name, rule_config in self.validation_rules.items():
             rule_start = time.time()
             report.rules_executed += 1
-            
+
             try:
                 # Apply timeout to individual rules
                 rule_func = rule_config["function"]
                 rule_timeout = rule_config.get("timeout", 5.0)
-                
+
                 logger.debug(
                     f"Executing validation rule {rule_name} for task {task.id}",
                     extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
                           "rule_name": rule_name, "task_id": task.id}
                 )
-                
+
                 # Execute rule with error handling
                 issues = []
                 try:
@@ -429,7 +429,7 @@ class QuantumTaskValidator:
                         extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
                               "rule_name": rule_name, "task_id": task.id, "error": str(rule_error)}
                     )
-                    
+
                     # Create issue for rule failure
                     rule_failure_issue = ValidationIssue(
                         severity=ValidationSeverity.ERROR if rule_config.get("critical", False) else ValidationSeverity.WARNING,
@@ -442,27 +442,27 @@ class QuantumTaskValidator:
                     )
                     issues = [rule_failure_issue]
                     report.rules_failed += 1
-                
+
                 # Add issues to report
                 for issue in issues:
                     if isinstance(issue, ValidationIssue):
                         issue.rule_name = rule_name  # Ensure rule name is set
                         report.add_issue(issue)
-                
+
                 # Update rule performance metrics
                 rule_time = time.time() - rule_start
                 self.rule_performance[rule_name]["total_time"] += rule_time
                 self.rule_performance[rule_name]["executions"] += 1
-                
+
                 if len(issues) > 0 and any(issue.severity in [ValidationSeverity.CRITICAL, ValidationSeverity.ERROR] for issue in issues):
                     self.rule_performance[rule_name]["failures"] += 1
-                
+
                 logger.debug(
                     f"Validation rule {rule_name} completed in {rule_time:.3f}s with {len(issues)} issues",
                     extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
                           "rule_name": rule_name, "rule_time": rule_time, "issues": len(issues)}
                 )
-                
+
             except Exception as e:
                 # Rule execution completely failed
                 logger.error(
@@ -470,7 +470,7 @@ class QuantumTaskValidator:
                     extra={"component": "quantum_validator", "operation": "_execute_validation_rules",
                           "rule_name": rule_name, "error": str(e)}
                 )
-                
+
                 critical_issue = ValidationIssue(
                     severity=ValidationSeverity.CRITICAL,
                     code="VALIDATION_RULE_SYSTEM_ERROR",
@@ -482,38 +482,38 @@ class QuantumTaskValidator:
                 )
                 report.add_issue(critical_issue)
                 report.rules_failed += 1
-    
+
     def _generate_recovery_suggestions(self, report: ValidationReport) -> List[str]:
         """Generate recovery suggestions based on validation issues"""
         suggestions = []
-        
+
         # Categorize issues
         critical_count = report.critical_issues
         error_count = report.error_issues
-        
+
         if critical_count > 0:
             suggestions.append(f"Address {critical_count} critical issues before proceeding")
             suggestions.append("Critical issues prevent task execution")
-        
+
         if error_count > 0:
             suggestions.append(f"Resolve {error_count} error-level issues")
-        
+
         # Rule-specific suggestions
         rule_issues = defaultdict(int)
         for issue in report.issues:
             if issue.rule_name:
                 rule_issues[issue.rule_name] += 1
-        
+
         if len(rule_issues) > 3:
             suggestions.append("Multiple validation rules failed - review task configuration")
-        
+
         # Add specific recovery actions from issues
         for issue in report.issues:
             if issue.recovery_actions:
                 suggestions.extend(issue.recovery_actions[:2])  # Limit to prevent spam
-        
+
         return list(set(suggestions))  # Remove duplicates
-    
+
     @validate_input(
         lambda self, task, resources=None: hasattr(task, 'id'),
         "Task missing ID attribute"
@@ -521,10 +521,10 @@ class QuantumTaskValidator:
     def _validate_task_id_format(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate task ID format and uniqueness with comprehensive checks"""
         issues = []
-        
+
         try:
             task_id = getattr(task, 'id', None)
-            
+
             # Check ID existence
             if not task_id:
                 issues.append(ValidationIssue(
@@ -536,7 +536,7 @@ class QuantumTaskValidator:
                     recovery_actions=["Set a valid task ID", "Generate unique ID"]
                 ))
                 return issues
-            
+
             # Sanitize and validate ID
             if not isinstance(task_id, str):
                 issues.append(ValidationIssue(
@@ -548,7 +548,7 @@ class QuantumTaskValidator:
                     recovery_actions=["Convert ID to string", "Use string ID"]
                 ))
                 return issues
-            
+
             # Check ID format with enhanced pattern
             if not re.match(r'^[a-zA-Z][a-zA-Z0-9_\-]*$', task_id):
                 issues.append(ValidationIssue(
@@ -560,7 +560,7 @@ class QuantumTaskValidator:
                     recovery_actions=["Fix ID format", "Regenerate valid ID"],
                     context_data={"current_id": task_id, "pattern": "^[a-zA-Z][a-zA-Z0-9_\\-]*$"}
                 ))
-            
+
             # Check length constraints
             if len(task_id) < 1:
                 issues.append(ValidationIssue(
@@ -581,7 +581,7 @@ class QuantumTaskValidator:
                     recovery_actions=["Shorten ID", "Use abbreviations"],
                     context_data={"current_length": len(task_id), "max_recommended": 128}
                 ))
-            
+
             # Check for reserved patterns
             reserved_patterns = [r'^test_', r'^temp_', r'^debug_']
             for pattern in reserved_patterns:
@@ -595,7 +595,7 @@ class QuantumTaskValidator:
                         recovery_actions=["Use different prefix", "Rename task"]
                     ))
                     break
-            
+
             # Check for potential security issues
             dangerous_chars = ['<', '>', '"', "'", '&', ';', '|', '`']
             found_dangerous = [char for char in dangerous_chars if char in task_id]
@@ -609,7 +609,7 @@ class QuantumTaskValidator:
                     recovery_actions=["Sanitize ID", "Use safe characters only"],
                     context_data={"dangerous_chars": found_dangerous}
                 ))
-        
+
         except Exception as e:
             logger.error(
                 f"Error in task ID format validation: {e}",
@@ -623,13 +623,13 @@ class QuantumTaskValidator:
                 suggestion="Check task ID validation logic",
                 recovery_actions=["Verify task object", "Check validation system"]
             ))
-        
+
         return issues
-    
+
     def _validate_task_dependencies(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate task dependency structure"""
         issues = []
-        
+
         # Self-dependency check
         if task.id in task.dependencies:
             issues.append(ValidationIssue(
@@ -639,7 +639,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Remove self-reference from dependencies"
             ))
-        
+
         # Circular dependency hints (basic check)
         if len(task.dependencies) > 10:
             issues.append(ValidationIssue(
@@ -649,13 +649,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider breaking down complex dependencies"
             ))
-        
+
         return issues
-    
+
     def _validate_resource_requirements(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate resource requirement specifications"""
         issues = []
-        
+
         if not task.resource_requirements:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.INFO,
@@ -665,7 +665,7 @@ class QuantumTaskValidator:
                 suggestion="Consider specifying resource requirements for better scheduling"
             ))
             return issues
-        
+
         # Validate resource values
         for resource_name, amount in task.resource_requirements.items():
             if amount < 0:
@@ -677,7 +677,7 @@ class QuantumTaskValidator:
                     resource=resource_name,
                     suggestion="Resource requirements must be non-negative"
                 ))
-            
+
             if amount > 1000:  # Suspiciously high
                 issues.append(ValidationIssue(
                     severity=ValidationSeverity.WARNING,
@@ -687,7 +687,7 @@ class QuantumTaskValidator:
                     resource=resource_name,
                     suggestion="Verify resource requirement is correct"
                 ))
-        
+
         # Check against available resources
         if resources:
             for resource_name, required_amount in task.resource_requirements.items():
@@ -711,13 +711,13 @@ class QuantumTaskValidator:
                         resource=resource_name,
                         suggestion="Check resource name or add resource to system"
                     ))
-        
+
         return issues
-    
+
     def _validate_quantum_coherence(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate quantum coherence properties"""
         issues = []
-        
+
         # Probability amplitude validation
         amplitude_magnitude = abs(task.probability_amplitude)
         if amplitude_magnitude > 10.0:  # Unreasonably high
@@ -728,7 +728,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider normalizing probability amplitudes"
             ))
-        
+
         # State consistency
         if task.state == QuantumState.COLLAPSED and amplitude_magnitude < 0.1:
             issues.append(ValidationIssue(
@@ -738,13 +738,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Verify quantum state consistency"
             ))
-        
+
         return issues
-    
+
     def _validate_tpu_compatibility(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate TPU-specific compatibility requirements"""
         issues = []
-        
+
         # TPU affinity validation
         if task.tpu_affinity:
             # Check affinity format
@@ -756,7 +756,7 @@ class QuantumTaskValidator:
                     task_id=task.id,
                     suggestion="Use format like '/dev/apex_0' or '/dev/accel_0'"
                 ))
-        
+
         # Memory footprint validation
         if task.memory_footprint > 128 * 1024 * 1024 * 1024:  # 128GB
             issues.append(ValidationIssue(
@@ -766,7 +766,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Reduce memory footprint or use model optimization"
             ))
-        
+
         # Model requirements validation
         for model_req in task.model_requirements:
             if not model_req.endswith(('.tflite', '.onnx', '.pb')):
@@ -777,13 +777,13 @@ class QuantumTaskValidator:
                     task_id=task.id,
                     suggestion="Ensure model is compatible with TPU v5"
                 ))
-        
+
         return issues
-    
+
     def _validate_execution_safety(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate execution safety constraints"""
         issues = []
-        
+
         # Duration validation
         if task.estimated_duration <= 0:
             issues.append(ValidationIssue(
@@ -793,7 +793,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Set realistic positive duration estimate"
             ))
-        
+
         if task.estimated_duration > 3600:  # 1 hour
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.WARNING,
@@ -802,7 +802,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider breaking into smaller tasks"
             ))
-        
+
         # Priority validation
         if task.priority <= 0:
             issues.append(ValidationIssue(
@@ -812,13 +812,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Use positive priority values"
             ))
-        
+
         return issues
-    
+
     def _validate_decoherence_limits(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate quantum decoherence parameters"""
         issues = []
-        
+
         if task.decoherence_time <= 0:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.ERROR,
@@ -827,7 +827,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Set positive decoherence time"
             ))
-        
+
         if task.decoherence_time < 1.0:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.WARNING,
@@ -836,7 +836,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider longer decoherence time for stability"
             ))
-        
+
         # Check current decoherence level
         current_decoherence = task.measure_decoherence()
         if current_decoherence > 0.9:
@@ -855,13 +855,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider prioritizing this task for execution"
             ))
-        
+
         return issues
-    
+
     def _validate_entanglement_validity(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate quantum entanglement relationships"""
         issues = []
-        
+
         # Self-entanglement check
         if task.id in task.entangled_tasks:
             issues.append(ValidationIssue(
@@ -871,7 +871,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Remove self-reference from entangled tasks"
             ))
-        
+
         # Excessive entanglements
         if len(task.entangled_tasks) > 5:
             issues.append(ValidationIssue(
@@ -881,13 +881,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider reducing entanglements for better performance"
             ))
-        
+
         return issues
-    
+
     def _validate_priority_ranges(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate priority value ranges"""
         issues = []
-        
+
         if task.priority > 100:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.WARNING,
@@ -896,7 +896,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider using priority range 1-10 for better balance"
             ))
-        
+
         if task.priority < 0.1:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.INFO,
@@ -905,13 +905,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Low priority tasks may be delayed significantly"
             ))
-        
+
         return issues
-    
+
     def _validate_complexity_sanity(self, task: QuantumTask, resources: Optional[Dict]) -> List[ValidationIssue]:
         """Validate complexity value sanity checks"""
         issues = []
-        
+
         if task.complexity <= 0:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.ERROR,
@@ -920,7 +920,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Set positive complexity value"
             ))
-        
+
         if task.complexity > 100:
             issues.append(ValidationIssue(
                 severity=ValidationSeverity.WARNING,
@@ -929,7 +929,7 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Consider breaking down complex tasks"
             ))
-        
+
         # Complexity vs duration correlation check
         if task.complexity > 10 and task.estimated_duration < 1.0:
             issues.append(ValidationIssue(
@@ -939,13 +939,13 @@ class QuantumTaskValidator:
                 task_id=task.id,
                 suggestion="Verify complexity and duration estimates are consistent"
             ))
-        
+
         return issues
 
 
 class CircularDependencyDetector:
     """Detect circular dependencies in task graphs"""
-    
+
     @staticmethod
     def detect_cycles(tasks: Dict[str, QuantumTask]) -> List[List[str]]:
         """Detect circular dependencies using DFS"""
@@ -953,7 +953,7 @@ class CircularDependencyDetector:
             visited.add(node)
             rec_stack.add(node)
             cycles = []
-            
+
             if node in tasks:
                 for dependency in tasks[node].dependencies:
                     if dependency not in visited:
@@ -963,39 +963,39 @@ class CircularDependencyDetector:
                         cycle_start = path.index(dependency)
                         cycle = path[cycle_start:] + [node, dependency]
                         cycles.append(cycle)
-            
+
             rec_stack.remove(node)
             return cycles
-        
+
         all_cycles = []
         visited = set()
-        
+
         for task_id in tasks:
             if task_id not in visited:
                 all_cycles.extend(dfs(task_id, [], visited, set()))
-        
+
         return all_cycles
 
 
 class QuantumSystemValidator:
     """System-wide quantum validation"""
-    
+
     def __init__(self):
         self.task_validator = QuantumTaskValidator()
         self.cycle_detector = CircularDependencyDetector()
-    
-    def validate_system(self, tasks: Dict[str, QuantumTask], 
+
+    def validate_system(self, tasks: Dict[str, QuantumTask],
                        resources: Dict[str, QuantumResource]) -> ValidationReport:
         """Comprehensive system validation"""
         start_time = time.time()
         system_report = ValidationReport()
-        
+
         # Validate individual tasks
         for task in tasks.values():
             task_report = self.task_validator.validate_task(task, resources)
             for issue in task_report.issues:
                 system_report.add_issue(issue)
-        
+
         # Check circular dependencies
         cycles = self.cycle_detector.detect_cycles(tasks)
         for cycle in cycles:
@@ -1006,13 +1006,13 @@ class QuantumSystemValidator:
                 suggestion="Remove circular dependencies by breaking dependency chain"
             )
             system_report.add_issue(cycle_issue)
-        
+
         # Resource capacity validation
         total_requirements = {}
         for task in tasks.values():
             for resource_name, amount in task.resource_requirements.items():
                 total_requirements[resource_name] = total_requirements.get(resource_name, 0) + amount
-        
+
         for resource_name, total_required in total_requirements.items():
             if resource_name in resources:
                 capacity = resources[resource_name].total_capacity
@@ -1025,7 +1025,7 @@ class QuantumSystemValidator:
                         suggestion="Monitor resource utilization during execution"
                     )
                     system_report.add_issue(capacity_issue)
-        
+
         # Entanglement consistency check
         for task in tasks.values():
             for entangled_id in task.entangled_tasks:
@@ -1049,7 +1049,7 @@ class QuantumSystemValidator:
                         suggestion="Remove reference to missing task or add the task"
                     )
                     system_report.add_issue(missing_issue)
-        
+
         system_report.validation_time = time.time() - start_time
         return system_report
 
@@ -1063,22 +1063,22 @@ def create_validation_summary(report: ValidationReport) -> str:
         f"Total Issues: {report.total_issues}",
         ""
     ]
-    
+
     if report.total_issues > 0:
         summary = report.get_summary()
         summary_parts.extend([
             f"  Critical: {summary['critical']}",
-            f"  Errors:   {summary['errors']}", 
+            f"  Errors:   {summary['errors']}",
             f"  Warnings: {summary['warnings']}",
             f"  Info:     {summary['info']}",
             ""
         ])
-        
+
         if report.has_blocking_issues():
             summary_parts.append("⚠️  BLOCKING ISSUES FOUND - EXECUTION NOT RECOMMENDED")
-        
+
         # Show top issues
-        critical_and_errors = [i for i in report.issues 
+        critical_and_errors = [i for i in report.issues
                               if i.severity in [ValidationSeverity.CRITICAL, ValidationSeverity.ERROR]]
         if critical_and_errors:
             summary_parts.extend([
@@ -1088,5 +1088,5 @@ def create_validation_summary(report: ValidationReport) -> str:
             ])
             for issue in critical_and_errors[:5]:  # Top 5
                 summary_parts.append(f"• {issue}")
-    
+
     return "\n".join(summary_parts)

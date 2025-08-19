@@ -4,27 +4,16 @@ This module integrates progressive quality gates with the existing TPU v5 benchm
 system to provide autonomous software development lifecycle management.
 """
 
-import asyncio
-import logging
 import json
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
+import logging
 from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
-from .progressive_quality_gates import (
-    run_progressive_quality_gates,
-    Generation,
-    GenerationReport,
-    GateStatus
-)
-from .quantum_validation import (
-    QuantumTaskValidator,
-    QuantumSystemValidator,
-    ValidationReport,
-    ValidationSeverity
-)
 from .monitoring import MetricsCollector
+from .progressive_quality_gates import GenerationReport, run_progressive_quality_gates
+from .quantum_validation import QuantumTaskValidator
 from .security import SecurityScanner
 
 logger = logging.getLogger(__name__)
@@ -42,7 +31,7 @@ class SDLCMetrics:
     quality_score: float = 0.0
     generation_results: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=datetime.now)
-    
+
     def calculate_overall_success_rate(self) -> float:
         """Calculate overall success rate across all gates"""
         if self.gates_executed == 0:
@@ -56,49 +45,49 @@ class AutonomousSDLC:
     This class orchestrates the progressive quality gates system to provide
     autonomous development, testing, and deployment capabilities.
     """
-    
+
     def __init__(self):
         self.metrics = SDLCMetrics()
         self.execution_history: List[SDLCMetrics] = []
         self.quantum_validator = QuantumTaskValidator()
         self.metrics_collector = MetricsCollector()
         self.security_scanner = SecurityScanner()
-        
+
     async def execute_autonomous_sdlc(self) -> Tuple[SDLCMetrics, List[GenerationReport]]:
         """Execute the complete autonomous SDLC process"""
         logger.info("🚀 Starting Autonomous SDLC Execution")
         start_time = datetime.now()
-        
+
         try:
             # Execute progressive quality gates
             reports = await run_progressive_quality_gates()
-            
+
             # Calculate metrics from reports
             self.metrics = self._calculate_metrics(reports, start_time)
-            
+
             # Store execution history
             self.execution_history.append(self.metrics)
-            
+
             # Log results
             self._log_execution_summary()
-            
+
             return self.metrics, reports
-            
+
         except Exception as e:
             logger.error(f"Autonomous SDLC execution failed: {e}")
             raise
-    
+
     def _calculate_metrics(self, reports: List[GenerationReport], start_time: datetime) -> SDLCMetrics:
         """Calculate SDLC metrics from generation reports"""
         metrics = SDLCMetrics()
         metrics.total_execution_time = (datetime.now() - start_time).total_seconds()
-        
+
         # Aggregate gate statistics
         for report in reports:
             metrics.gates_executed += report.total_gates
             metrics.gates_passed += report.passed_gates
             metrics.gates_failed += report.failed_gates
-            
+
             # Store generation-specific results
             metrics.generation_results[report.generation.value] = {
                 "total_gates": report.total_gates,
@@ -108,7 +97,7 @@ class AutonomousSDLC:
                 "execution_time": report.execution_time,
                 "is_passed": report.is_passed
             }
-            
+
             # Extract specific metrics
             for gate_result in report.gate_results:
                 if gate_result.gate_name == "security_patterns":
@@ -116,12 +105,12 @@ class AutonomousSDLC:
                     metrics.security_issues += security_details.get("vulnerability_count", 0)
                 elif gate_result.gate_name == "performance_optimization":
                     metrics.performance_score = gate_result.score or 0.0
-        
+
         # Calculate overall quality score
         metrics.quality_score = metrics.calculate_overall_success_rate()
-        
+
         return metrics
-    
+
     def _log_execution_summary(self) -> None:
         """Log execution summary"""
         logger.info("📊 Autonomous SDLC Execution Summary:")
@@ -133,12 +122,12 @@ class AutonomousSDLC:
         logger.info(f"   Security Issues: {self.metrics.security_issues}")
         logger.info(f"   Performance Score: {self.metrics.performance_score:.1f}%")
         logger.info(f"   Quality Score: {self.metrics.quality_score:.1f}%")
-        
+
         # Log generation breakdown
         for gen_name, gen_data in self.metrics.generation_results.items():
             status = "✅ PASSED" if gen_data["is_passed"] else "❌ FAILED"
             logger.info(f"   {gen_name}: {status} ({gen_data['success_rate']:.1f}%)")
-    
+
     def get_deployment_readiness(self) -> Dict[str, Any]:
         """Assess deployment readiness based on quality gates"""
         if not self.metrics.generation_results:
@@ -147,7 +136,7 @@ class AutonomousSDLC:
                 "reason": "No quality gates executed",
                 "recommendations": ["Execute quality gates first"]
             }
-        
+
         # Check Generation 1 (mandatory for deployment)
         gen1_result = self.metrics.generation_results.get("gen1_basic", {})
         if not gen1_result.get("is_passed", False):
@@ -160,7 +149,7 @@ class AutonomousSDLC:
                     "Complete documentation requirements"
                 ]
             }
-        
+
         # Check for critical security issues
         if self.metrics.security_issues > 0:
             return {
@@ -172,7 +161,7 @@ class AutonomousSDLC:
                     "Update vulnerable dependencies"
                 ]
             }
-        
+
         # Assess overall quality
         overall_success = self.metrics.calculate_overall_success_rate()
         if overall_success < 85.0:
@@ -185,7 +174,7 @@ class AutonomousSDLC:
                     "Enhance error handling and logging"
                 ]
             }
-        
+
         # Check Generation 2 (robustness)
         gen2_result = self.metrics.generation_results.get("gen2_robust", {})
         if gen2_result and not gen2_result.get("is_passed", False):
@@ -199,7 +188,7 @@ class AutonomousSDLC:
                 ],
                 "deployment_risk": "medium"
             }
-        
+
         # Check Generation 3 (scalability)
         gen3_result = self.metrics.generation_results.get("gen3_optimized", {})
         if gen3_result and not gen3_result.get("is_passed", False):
@@ -213,7 +202,7 @@ class AutonomousSDLC:
                 ],
                 "deployment_risk": "low"
             }
-        
+
         # All checks passed
         return {
             "ready": True,
@@ -221,7 +210,7 @@ class AutonomousSDLC:
             "quality_score": overall_success,
             "deployment_confidence": "high"
         }
-    
+
     def export_metrics(self, output_path: Path) -> None:
         """Export SDLC metrics to JSON file"""
         try:
@@ -241,15 +230,15 @@ class AutonomousSDLC:
                 "deployment_readiness": self.get_deployment_readiness(),
                 "execution_history_count": len(self.execution_history)
             }
-            
+
             with open(output_path, 'w') as f:
                 json.dump(export_data, f, indent=2)
-            
+
             logger.info(f"SDLC metrics exported to {output_path}")
-            
+
         except Exception as e:
             logger.error(f"Failed to export metrics: {e}")
-    
+
     def generate_ci_cd_config(self) -> Dict[str, Any]:
         """Generate CI/CD configuration based on quality gate results"""
         config = {
@@ -280,7 +269,7 @@ class AutonomousSDLC:
                 }
             }
         }
-        
+
         # Add conditional deployment based on quality gates
         deployment_readiness = self.get_deployment_readiness()
         if deployment_readiness.get("ready"):
@@ -297,7 +286,7 @@ class AutonomousSDLC:
                 ]
             }
             config["workflows"]["autonomous_sdlc"]["jobs"].append("deploy")
-        
+
         return config
 
 
@@ -322,13 +311,13 @@ def create_sdlc_summary_report(metrics: SDLCMetrics, reports: List[GenerationRep
         "📊 Generation Breakdown:",
         "-" * 40
     ]
-    
+
     generation_names = {
         "gen1_basic": "Generation 1: Make it Work",
-        "gen2_robust": "Generation 2: Make it Robust", 
+        "gen2_robust": "Generation 2: Make it Robust",
         "gen3_optimized": "Generation 3: Make it Scale"
     }
-    
+
     for gen_key, gen_data in metrics.generation_results.items():
         gen_name = generation_names.get(gen_key, gen_key)
         status = "✅ PASSED" if gen_data["is_passed"] else "❌ FAILED"
@@ -340,24 +329,24 @@ def create_sdlc_summary_report(metrics: SDLCMetrics, reports: List[GenerationRep
             f"  Execution Time: {gen_data['execution_time']:.2f}s",
             ""
         ])
-    
+
     # Add deployment readiness
     sdlc = AutonomousSDLC()
     sdlc.metrics = metrics
     deployment = sdlc.get_deployment_readiness()
-    
+
     report_lines.extend([
         "🚀 Deployment Readiness:",
         "-" * 25,
         f"Status: {deployment.get('ready', 'Unknown')}",
         f"Reason: {deployment.get('reason', 'N/A')}",
     ])
-    
+
     if deployment.get("recommendations"):
         report_lines.append("Recommendations:")
         for rec in deployment["recommendations"]:
             report_lines.append(f"  • {rec}")
-    
+
     report_lines.extend([
         "",
         "=" * 80,
@@ -365,5 +354,5 @@ def create_sdlc_summary_report(metrics: SDLCMetrics, reports: List[GenerationRep
         f"Timestamp: {metrics.timestamp.isoformat()}",
         "=" * 80
     ])
-    
+
     return "\n".join(report_lines)
