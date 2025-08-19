@@ -4,29 +4,30 @@ Advanced monitoring system for quantum task execution with TPU metrics integrati
 enhanced with circuit breakers, retry mechanisms, and comprehensive error handling.
 """
 
-import time
 import asyncio
-import threading
-import weakref
-from typing import Dict, List, Optional, Any, Callable, Union
-from dataclasses import dataclass, field
-from collections import deque, defaultdict
 import json
 import logging
-from enum import Enum
 import statistics
-from contextlib import asynccontextmanager
+import threading
+import time
+import weakref
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
 
-from .quantum_planner import QuantumTaskPlanner, QuantumTask, QuantumState
-from .quantum_validation import ValidationReport, QuantumSystemValidator
 from .exceptions import (
-    QuantumError, QuantumMonitoringError, QuantumCircuitBreakerError,
-    QuantumRetryExhaustedError, ErrorContext, handle_quantum_error,
-    quantum_operation, validate_input, CircuitBreaker, CircuitBreakerConfig,
-    RetryManager, RetryConfig,
-    ErrorHandlingContext, AsyncErrorHandlingContext
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    ErrorContext,
+    QuantumCircuitBreakerError,
+    QuantumMonitoringError,
+    handle_quantum_error,
+    validate_input,
 )
-from .security import InputValidator, DataSanitizer
+from .quantum_planner import QuantumTaskPlanner
+from .quantum_validation import QuantumSystemValidator
+from .security import DataSanitizer
 
 # Configure structured logging for monitoring
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ if not logger.handlers:
 class HealthStatus(Enum):
     """System health status levels"""
     HEALTHY = "healthy"
-    WARNING = "warning" 
+    WARNING = "warning"
     DEGRADED = "degraded"
     CRITICAL = "critical"
     UNKNOWN = "unknown"
@@ -61,24 +62,24 @@ class MetricPoint:
     metric_id: str = ""
     source: str = "unknown"
     quality: float = 1.0  # Data quality score (0-1)
-    
+
     def __post_init__(self):
         # Validate and sanitize data
         if not isinstance(self.timestamp, (int, float)) or self.timestamp <= 0:
             self.timestamp = time.time()
             self.quality *= 0.5
-        
+
         if not isinstance(self.value, (int, float)):
             try:
                 self.value = float(self.value)
             except (ValueError, TypeError):
                 self.value = 0.0
                 self.quality = 0.0
-        
+
         # Sanitize metadata
         if self.metadata:
             self.metadata = DataSanitizer.sanitize_dict(self.metadata, max_keys=10)
-        
+
         # Generate metric ID if not provided
         if not self.metric_id:
             self.metric_id = f"metric_{int(self.timestamp)}_{hash(str(self.value)) % 10000}"
@@ -98,26 +99,26 @@ class HealthCheck:
     check_count: int = 0
     failure_count: int = 0
     recovery_suggestions: List[str] = field(default_factory=list)
-    
+
     def __post_init__(self):
         # Validate and sanitize
         self.name = DataSanitizer.sanitize_string(self.name, max_length=100)
         self.message = DataSanitizer.sanitize_string(self.message, max_length=500)
-        
+
         if self.details:
             self.details = DataSanitizer.sanitize_dict(self.details, max_keys=20)
-        
+
         if not self.check_id:
             self.check_id = f"check_{self.name}_{int(self.timestamp)}"
-    
+
     def is_healthy(self) -> bool:
         """Check if health status indicates system is healthy"""
         return self.status == HealthStatus.HEALTHY
-    
+
     def is_critical(self) -> bool:
         """Check if health status indicates critical issues"""
         return self.status == HealthStatus.CRITICAL
-    
+
     def get_severity_score(self) -> float:
         """Get numeric severity score (0-1, higher is worse)"""
         severity_map = {
@@ -134,32 +135,32 @@ class HealthCheck:
 class PerformanceMetrics:
     """Performance metrics snapshot"""
     timestamp: float = field(default_factory=time.time)
-    
+
     # Task metrics
     total_tasks: int = 0
     completed_tasks: int = 0
     failed_tasks: int = 0
     active_tasks: int = 0
-    
+
     # Execution metrics
     avg_execution_time: float = 0.0
     max_execution_time: float = 0.0
     min_execution_time: float = 0.0
-    
+
     # Queue metrics
     queue_length: int = 0
     avg_queue_wait_time: float = 0.0
-    
+
     # Resource metrics
     cpu_utilization: float = 0.0
     memory_utilization: float = 0.0
     tpu_utilization: float = 0.0
-    
+
     # Quantum metrics
     avg_coherence: float = 0.0
     entanglement_count: int = 0
     decoherence_rate: float = 0.0
-    
+
     # Throughput metrics
     tasks_per_second: float = 0.0
     successful_tasks_per_second: float = 0.0
@@ -167,12 +168,12 @@ class PerformanceMetrics:
 
 class MetricsCollector:
     """Collects and stores system metrics over time with enhanced error handling and validation"""
-    
+
     def __init__(self, max_history: int = 1000, enable_persistence: bool = False):
         # Validate and sanitize parameters
         self.max_history = max(100, min(max_history, 100000))  # Reasonable bounds
         self.enable_persistence = enable_persistence
-        
+
         # Thread-safe data structures
         self._lock = threading.RLock()
         self.metrics_history: deque = deque(maxlen=self.max_history)
@@ -180,12 +181,12 @@ class MetricsCollector:
         self.custom_metrics: Dict[str, deque] = defaultdict(
             lambda: deque(maxlen=self.max_history)
         )
-        
+
         # Error tracking
         self.collection_errors: deque = deque(maxlen=100)
         self.metrics_collected = 0
         self.collection_failures = 0
-        
+
         # Circuit breaker for metric collection resilience
         cb_config = CircuitBreakerConfig(
             failure_threshold=5,
@@ -194,16 +195,16 @@ class MetricsCollector:
             expected_exception=Exception
         )
         self.circuit_breaker = CircuitBreaker(cb_config)
-        
+
         logger.info(
             f"MetricsCollector initialized with max_history={self.max_history}, "
             f"persistence={enable_persistence}",
             extra={"component": "metrics_collector", "operation": "__init__"}
         )
-    
+
     @validate_input(
         lambda self, name, value, metadata=None: (
-            isinstance(name, str) and len(name) > 0 and 
+            isinstance(name, str) and len(name) > 0 and
             isinstance(value, (int, float))
         ),
         "Invalid metric name or value"
@@ -227,17 +228,17 @@ class MetricsCollector:
             )
             self.collection_failures += 1
             self._record_collection_error("record_metric", name, str(e))
-    
+
     def _record_metric_internal(self, name: str, value: float, metadata: Optional[Dict]) -> None:
         """Internal metric recording with validation"""
         with self._lock:
             # Sanitize inputs
             name = DataSanitizer.sanitize_string(name, max_length=100)
-            
+
             # Validate value
             if not isinstance(value, (int, float)) or not (-1e10 <= value <= 1e10):
                 raise ValueError(f"Invalid metric value: {value}")
-            
+
             # Create metric point with validation
             metric_point = MetricPoint(
                 timestamp=time.time(),
@@ -245,17 +246,17 @@ class MetricsCollector:
                 metadata=metadata or {},
                 source="custom"
             )
-            
+
             # Store metric
             self.custom_metrics[name].append(metric_point)
             self.metrics_collected += 1
-            
+
             logger.debug(
                 f"Recorded metric {name}={value}",
                 extra={"component": "metrics_collector", "operation": "_record_metric_internal",
                       "metric_name": name, "metric_value": value}
             )
-    
+
     @validate_input(
         lambda self, task_id, duration, success, metadata=None: (
             isinstance(task_id, str) and len(task_id) > 0 and
@@ -271,7 +272,7 @@ class MetricsCollector:
                 # Sanitize inputs
                 task_id = DataSanitizer.sanitize_string(task_id, max_length=200)
                 duration = max(0.0, min(duration, 86400.0))  # Cap at 24 hours
-                
+
                 execution_record = {
                     'record_id': f"exec_{task_id}_{int(time.time())}_{hash(task_id) % 1000}",
                     'timestamp': time.time(),
@@ -280,16 +281,16 @@ class MetricsCollector:
                     'success': success,
                     'metadata': DataSanitizer.sanitize_dict(metadata or {}, max_keys=15)
                 }
-                
+
                 self.task_execution_history.append(execution_record)
                 self.metrics_collected += 1
-                
+
                 logger.debug(
                     f"Recorded task execution: {task_id} ({'success' if success else 'failed'}) in {duration:.3f}s",
                     extra={"component": "metrics_collector", "operation": "record_task_execution",
                           "task_id": task_id, "duration": duration, "success": success}
                 )
-                
+
         except Exception as e:
             logger.error(
                 f"Error recording task execution for {task_id}: {e}",
@@ -298,7 +299,7 @@ class MetricsCollector:
             )
             self.collection_failures += 1
             self._record_collection_error("record_task_execution", task_id, str(e))
-    
+
     @validate_input(
         lambda self, metrics: hasattr(metrics, 'timestamp'),
         "Invalid performance metrics object"
@@ -310,7 +311,7 @@ class MetricsCollector:
                 # Validate metrics object
                 if not hasattr(metrics, 'timestamp'):
                     raise ValueError("Performance metrics missing timestamp")
-                
+
                 # Sanitize metrics values
                 sanitized_metrics = PerformanceMetrics(
                     timestamp=getattr(metrics, 'timestamp', time.time()),
@@ -332,10 +333,10 @@ class MetricsCollector:
                     tasks_per_second=max(0.0, getattr(metrics, 'tasks_per_second', 0.0)),
                     successful_tasks_per_second=max(0.0, getattr(metrics, 'successful_tasks_per_second', 0.0))
                 )
-                
+
                 self.metrics_history.append(sanitized_metrics)
                 self.metrics_collected += 1
-                
+
                 logger.debug(
                     f"Recorded performance snapshot: {sanitized_metrics.total_tasks} total tasks, "
                     f"{sanitized_metrics.tasks_per_second:.2f} tasks/sec",
@@ -343,7 +344,7 @@ class MetricsCollector:
                           "total_tasks": sanitized_metrics.total_tasks,
                           "tasks_per_second": sanitized_metrics.tasks_per_second}
                 )
-                
+
         except Exception as e:
             logger.error(
                 f"Error recording performance snapshot: {e}",
@@ -351,7 +352,7 @@ class MetricsCollector:
             )
             self.collection_failures += 1
             self._record_collection_error("record_performance_snapshot", "system", str(e))
-    
+
     def _record_collection_error(self, operation: str, target: str, error: str) -> None:
         """Record collection error for debugging"""
         try:
@@ -365,38 +366,38 @@ class MetricsCollector:
             self.collection_errors.append(error_record)
         except Exception:
             pass  # Best effort error recording
-    
+
     def get_metric_history(self, name: str, window_seconds: Optional[float] = None) -> List[MetricPoint]:
         """Get history for specific metric"""
         with self._lock:
             if name not in self.custom_metrics:
                 return []
-            
+
             history = list(self.custom_metrics[name])
-            
+
             if window_seconds:
                 cutoff_time = time.time() - window_seconds
                 history = [point for point in history if point.timestamp >= cutoff_time]
-            
+
             return history
-    
+
     def get_performance_history(self, window_seconds: Optional[float] = None) -> List[PerformanceMetrics]:
         """Get performance metrics history"""
         with self._lock:
             history = list(self.metrics_history)
-            
+
             if window_seconds:
                 cutoff_time = time.time() - window_seconds
                 history = [metrics for metrics in history if metrics.timestamp >= cutoff_time]
-            
+
             return history
-    
+
     def get_task_execution_stats(self, window_seconds: Optional[float] = None) -> Dict[str, Any]:
         """Get task execution statistics with comprehensive error handling"""
         try:
             with self._lock:
                 executions = list(self.task_execution_history)
-                
+
                 # Apply time window filter with validation
                 if window_seconds is not None:
                     if not isinstance(window_seconds, (int, float)) or window_seconds <= 0:
@@ -408,7 +409,7 @@ class MetricsCollector:
                     else:
                         cutoff_time = time.time() - window_seconds
                         executions = [ex for ex in executions if ex.get('timestamp', 0) >= cutoff_time]
-                
+
                 # Return empty stats for no executions
                 if not executions:
                     return {
@@ -425,12 +426,12 @@ class MetricsCollector:
                         'window_seconds': window_seconds,
                         'data_quality': 1.0
                     }
-                
+
                 # Separate successful and failed executions with validation
                 successful = []
                 failed = []
                 valid_durations = []
-                
+
                 for ex in executions:
                     try:
                         if isinstance(ex, dict) and 'success' in ex:
@@ -438,7 +439,7 @@ class MetricsCollector:
                                 successful.append(ex)
                             else:
                                 failed.append(ex)
-                            
+
                             # Collect valid durations
                             duration = ex.get('duration', 0)
                             if isinstance(duration, (int, float)) and duration >= 0:
@@ -449,7 +450,7 @@ class MetricsCollector:
                             extra={"component": "metrics_collector", "operation": "get_task_execution_stats"}
                         )
                         continue
-                
+
                 # Calculate throughput with error handling
                 tasks_per_second = 0.0
                 try:
@@ -464,7 +465,7 @@ class MetricsCollector:
                         f"Error calculating tasks per second: {e}",
                         extra={"component": "metrics_collector", "operation": "get_task_execution_stats"}
                     )
-                
+
                 # Calculate statistics with error handling
                 stats = {
                     'total_executions': len(executions),
@@ -476,7 +477,7 @@ class MetricsCollector:
                     'window_seconds': window_seconds,
                     'data_quality': len(valid_durations) / max(len(executions), 1)
                 }
-                
+
                 # Duration statistics with error handling
                 if valid_durations:
                     try:
@@ -486,7 +487,7 @@ class MetricsCollector:
                             'max_duration': max(valid_durations),
                             'median_duration': statistics.median(valid_durations),
                             'percentile_95_duration': (
-                                sorted(valid_durations)[int(0.95 * len(valid_durations))] 
+                                sorted(valid_durations)[int(0.95 * len(valid_durations))]
                                 if len(valid_durations) > 1 else valid_durations[0]
                             )
                         })
@@ -510,9 +511,9 @@ class MetricsCollector:
                         'median_duration': 0.0,
                         'percentile_95_duration': 0.0
                     })
-                
+
                 return stats
-                
+
         except Exception as e:
             logger.error(
                 f"Error getting task execution stats: {e}",
@@ -532,14 +533,14 @@ class MetricsCollector:
                 'error': str(e),
                 'data_quality': 0.0
             }
-    
+
     def get_collection_health(self) -> Dict[str, Any]:
         """Get metrics collection health status"""
         try:
             with self._lock:
                 total_operations = self.metrics_collected + self.collection_failures
                 success_rate = self.metrics_collected / max(total_operations, 1)
-                
+
                 return {
                     'metrics_collected': self.metrics_collected,
                     'collection_failures': self.collection_failures,
@@ -557,17 +558,17 @@ class MetricsCollector:
 
 class QuantumHealthMonitor:
     """Comprehensive health monitoring for quantum systems with enhanced resilience"""
-    
-    def __init__(self, planner: QuantumTaskPlanner, 
+
+    def __init__(self, planner: QuantumTaskPlanner,
                  monitoring_interval: float = 30.0,
                  enable_alerts: bool = True,
                  max_concurrent_checks: int = 5):
-        
+
         # Validate parameters
         self.monitoring_interval = max(1.0, min(monitoring_interval, 300.0))  # 1s to 5min
         self.max_concurrent_checks = max(1, min(max_concurrent_checks, 20))
         self.enable_alerts = enable_alerts
-        
+
         # Core components with weak reference to avoid circular dependencies
         try:
             self.planner_ref = weakref.ref(planner)
@@ -578,10 +579,10 @@ class QuantumHealthMonitor:
             )
             self.planner = planner
             self.planner_ref = None
-        
+
         self.validator = QuantumSystemValidator()
         self.metrics_collector = MetricsCollector(max_history=2000)
-        
+
         # Monitoring state
         self._lock = threading.RLock()
         self.health_checks: Dict[str, Dict[str, Any]] = {}
@@ -589,7 +590,7 @@ class QuantumHealthMonitor:
         self._monitoring_active = False
         self._monitor_task: Optional[asyncio.Task] = None
         self._check_semaphore = asyncio.Semaphore(max_concurrent_checks)
-        
+
         # Health check history and statistics
         self.check_history = defaultdict(lambda: deque(maxlen=100))
         self.check_statistics = defaultdict(lambda: {
@@ -599,38 +600,38 @@ class QuantumHealthMonitor:
             'last_success': None,
             'last_failure': None
         })
-        
+
         # Circuit breakers for health checks
         self.check_circuit_breakers = {}
-        
+
         # Alert management
         self.active_alerts = {}
         self.alert_history = deque(maxlen=500)
         self.alert_callbacks: List[Callable] = []
-        
+
         # Register default components
         self._register_default_health_checks()
         self._set_default_thresholds()
-        
+
         logger.info(
             f"QuantumHealthMonitor initialized with interval={monitoring_interval}s, "
             f"alerts={'enabled' if enable_alerts else 'disabled'}",
             extra={"component": "quantum_health_monitor", "operation": "__init__",
                   "monitoring_interval": monitoring_interval, "enable_alerts": enable_alerts}
         )
-    
+
     @property
     def planner(self) -> Optional[QuantumTaskPlanner]:
         """Get planner from weak reference if available"""
         if self.planner_ref:
             return self.planner_ref()
         return getattr(self, '_planner', None)
-    
+
     @planner.setter
     def planner(self, value: QuantumTaskPlanner) -> None:
         """Set planner reference"""
         self._planner = value
-    
+
     def _register_default_health_checks(self) -> None:
         """Register default health check functions with metadata and circuit breakers"""
         default_checks = {
@@ -707,11 +708,11 @@ class QuantumHealthMonitor:
                 'enabled': True
             }
         }
-        
+
         # Register checks and create circuit breakers
         for check_name, check_config in default_checks.items():
             self.health_checks[check_name] = check_config
-            
+
             # Create circuit breaker for each check
             cb_config = CircuitBreakerConfig(
                 failure_threshold=3,
@@ -720,13 +721,13 @@ class QuantumHealthMonitor:
                 expected_exception=Exception
             )
             self.check_circuit_breakers[check_name] = CircuitBreaker(cb_config)
-            
+
             logger.debug(
                 f"Registered health check: {check_name}",
                 extra={"component": "quantum_health_monitor", "operation": "_register_default_health_checks",
                       "check_name": check_name}
             )
-    
+
     def _set_default_thresholds(self) -> None:
         """Set default alert thresholds with validation"""
         default_thresholds = {
@@ -742,7 +743,7 @@ class QuantumHealthMonitor:
             'max_validation_errors': 5,
             'max_circuit_breaker_open_time': 300.0
         }
-        
+
         # Validate and set thresholds
         self.alert_thresholds = {}
         for threshold_name, threshold_value in default_thresholds.items():
@@ -759,13 +760,13 @@ class QuantumHealthMonitor:
                     f"Error setting threshold {threshold_name}: {e}",
                     extra={"component": "quantum_health_monitor", "operation": "_set_default_thresholds"}
                 )
-        
+
         logger.info(
             f"Set {len(self.alert_thresholds)} alert thresholds",
             extra={"component": "quantum_health_monitor", "operation": "_set_default_thresholds",
                   "threshold_count": len(self.alert_thresholds)}
         )
-    
+
     @validate_input(
         lambda self, metric, value: (
             isinstance(metric, str) and len(metric) > 0 and
@@ -779,7 +780,7 @@ class QuantumHealthMonitor:
             # Sanitize inputs
             metric = DataSanitizer.sanitize_string(metric, max_length=100)
             value = float(value)
-            
+
             # Validate threshold value ranges
             if metric.startswith('min_') and value < 0:
                 raise ValueError(f"Minimum threshold cannot be negative: {value}")
@@ -787,16 +788,16 @@ class QuantumHealthMonitor:
                 raise ValueError(f"Maximum threshold must be positive: {value}")
             elif metric.endswith('_rate') and not (0.0 <= value <= 1.0):
                 raise ValueError(f"Rate threshold must be between 0 and 1: {value}")
-            
+
             old_value = self.alert_thresholds.get(metric)
             self.alert_thresholds[metric] = value
-            
+
             logger.info(
                 f"Updated alert threshold {metric}: {old_value} -> {value}",
                 extra={"component": "quantum_health_monitor", "operation": "set_alert_threshold",
                       "metric": metric, "old_value": old_value, "new_value": value}
             )
-            
+
         except Exception as e:
             logger.error(
                 f"Error setting alert threshold {metric}={value}: {e}",
@@ -804,7 +805,7 @@ class QuantumHealthMonitor:
                       "metric": metric, "value": value}
             )
             raise QuantumMonitoringError(f"Failed to set alert threshold: {e}") from e
-    
+
     @validate_input(
         lambda self, interval=30.0: isinstance(interval, (int, float)) and interval > 0,
         "Invalid monitoring interval"
@@ -818,57 +819,57 @@ class QuantumHealthMonitor:
                     extra={"component": "quantum_health_monitor", "operation": "start_monitoring"}
                 )
                 return
-            
+
             # Use provided interval or default
             monitoring_interval = interval if interval is not None else self.monitoring_interval
             monitoring_interval = max(1.0, min(monitoring_interval, 300.0))
-            
+
             with self._lock:
                 self._monitoring_active = True
-            
+
             logger.info(
                 f"Starting quantum health monitoring with interval {monitoring_interval}s",
                 extra={"component": "quantum_health_monitor", "operation": "start_monitoring",
                       "interval": monitoring_interval, "max_concurrent_checks": self.max_concurrent_checks}
             )
-            
+
             # Create monitoring coroutine with comprehensive error handling
             async def monitor_loop():
                 consecutive_failures = 0
                 max_consecutive_failures = 5
-                
+
                 while self._monitoring_active:
                     loop_start = time.time()
-                    
+
                     try:
                         # Collect performance metrics with timeout
                         await asyncio.wait_for(
                             self._collect_performance_metrics(),
                             timeout=monitoring_interval / 2
                         )
-                        
+
                         # Run health checks with concurrency control
                         health_results = await asyncio.wait_for(
                             self._run_all_health_checks(),
                             timeout=monitoring_interval * 0.8
                         )
-                        
+
                         # Process alerts
                         if self.enable_alerts:
                             alerts = self._check_for_alerts(health_results)
                             if alerts:
                                 await self._handle_alerts(alerts)
-                        
+
                         # Reset failure counter on success
                         consecutive_failures = 0
-                        
+
                         logger.debug(
                             f"Monitoring cycle completed in {time.time() - loop_start:.2f}s",
                             extra={"component": "quantum_health_monitor", "operation": "monitor_loop",
                                   "cycle_duration": time.time() - loop_start,
                                   "health_checks": len(health_results)}
                         )
-                    
+
                     except asyncio.TimeoutError:
                         consecutive_failures += 1
                         logger.warning(
@@ -876,7 +877,7 @@ class QuantumHealthMonitor:
                             extra={"component": "quantum_health_monitor", "operation": "monitor_loop",
                                   "consecutive_failures": consecutive_failures}
                         )
-                    
+
                     except Exception as e:
                         consecutive_failures += 1
                         logger.error(
@@ -884,7 +885,7 @@ class QuantumHealthMonitor:
                             extra={"component": "quantum_health_monitor", "operation": "monitor_loop",
                                   "consecutive_failures": consecutive_failures, "error": str(e)}
                         )
-                        
+
                         # Create system health alert for monitoring failures
                         if consecutive_failures >= max_consecutive_failures:
                             critical_alert = HealthCheck(
@@ -899,35 +900,35 @@ class QuantumHealthMonitor:
                                 ]
                             )
                             await self._handle_alerts([critical_alert])
-                    
+
                     # Calculate sleep time accounting for processing time
                     cycle_duration = time.time() - loop_start
                     sleep_time = max(0.1, monitoring_interval - cycle_duration)
-                    
+
                     # Use exponential backoff for failures
                     if consecutive_failures > 0:
                         sleep_time *= min(2 ** consecutive_failures, 8)  # Max 8x backoff
-                    
+
                     await asyncio.sleep(sleep_time)
-                
+
                 logger.info(
                     "Monitoring loop stopped",
                     extra={"component": "quantum_health_monitor", "operation": "monitor_loop"}
                 )
-            
+
             # Start monitoring task
             self._monitor_task = asyncio.create_task(monitor_loop())
-            
+
         except Exception as e:
             with self._lock:
                 self._monitoring_active = False
-            
+
             context = ErrorContext(
                 component="quantum_health_monitor",
                 operation="start_monitoring"
             )
             handle_quantum_error(e, context)
-    
+
     async def stop_monitoring(self) -> None:
         """Stop continuous monitoring with graceful shutdown"""
         try:
@@ -935,13 +936,13 @@ class QuantumHealthMonitor:
                 "Stopping quantum health monitoring",
                 extra={"component": "quantum_health_monitor", "operation": "stop_monitoring"}
             )
-            
+
             with self._lock:
                 self._monitoring_active = False
-            
+
             if self._monitor_task and not self._monitor_task.done():
                 self._monitor_task.cancel()
-                
+
                 try:
                     await asyncio.wait_for(self._monitor_task, timeout=5.0)
                 except asyncio.TimeoutError:
@@ -961,66 +962,66 @@ class QuantumHealthMonitor:
                     )
                 finally:
                     self._monitor_task = None
-            
+
             # Clear active alerts
             self.active_alerts.clear()
-            
+
             logger.info(
                 "Quantum health monitoring stopped successfully",
                 extra={"component": "quantum_health_monitor", "operation": "stop_monitoring"}
             )
-            
+
         except Exception as e:
             context = ErrorContext(
                 component="quantum_health_monitor",
                 operation="stop_monitoring"
             )
             handle_quantum_error(e, context, reraise=False)
-    
+
     async def _collect_performance_metrics(self) -> None:
         """Collect current performance metrics"""
         state = self.planner.get_system_state()
-        
+
         # Get task execution statistics
         exec_stats = self.metrics_collector.get_task_execution_stats(window_seconds=300)  # 5 minutes
-        
+
         metrics = PerformanceMetrics(
             total_tasks=state['total_tasks'],
             completed_tasks=state['completed_tasks'],
             failed_tasks=exec_stats.get('failed_executions', 0),
             active_tasks=len(self.planner.active_tasks),
-            
+
             avg_execution_time=exec_stats.get('avg_duration', 0.0),
             max_execution_time=exec_stats.get('max_duration', 0.0),
             min_execution_time=exec_stats.get('min_duration', 0.0),
-            
+
             queue_length=len(self.planner.get_ready_tasks()),
-            
+
             # Resource utilization (from quantum planner state)
             tpu_utilization=state['resource_utilization'].get('tpu_v5_primary', 0.0),
             cpu_utilization=state['resource_utilization'].get('cpu_cores', 0.0),
             memory_utilization=state['resource_utilization'].get('memory_gb', 0.0),
-            
+
             # Quantum metrics
             avg_coherence=state['quantum_metrics']['average_coherence'],
             entanglement_count=state['quantum_metrics']['entanglement_pairs'],
-            
+
             # Throughput
             tasks_per_second=exec_stats.get('tasks_per_second', 0.0),
             successful_tasks_per_second=exec_stats.get('tasks_per_second', 0.0) * exec_stats.get('success_rate', 0.0)
         )
-        
+
         self.metrics_collector.record_performance_snapshot(metrics)
-        
+
         # Record individual metrics for trending
         self.metrics_collector.record_metric('coherence', metrics.avg_coherence)
         self.metrics_collector.record_metric('queue_length', metrics.queue_length)
         self.metrics_collector.record_metric('tasks_per_second', metrics.tasks_per_second)
-    
+
     async def _run_all_health_checks(self) -> List[HealthCheck]:
         """Run all registered health checks"""
         health_results = []
-        
+
         for check_name, check_func in self.health_checks.items():
             try:
                 result = await asyncio.create_task(asyncio.to_thread(check_func))
@@ -1034,14 +1035,14 @@ class QuantumHealthMonitor:
                 )
                 health_results.append(error_result)
                 logger.error(f"Health check {check_name} failed: {e}")
-        
+
         return health_results
-    
+
     def _check_quantum_coherence(self) -> HealthCheck:
         """Check quantum coherence levels"""
         state = self.planner.get_system_state()
         coherence = state['quantum_metrics']['average_coherence']
-        
+
         if coherence < self.alert_thresholds.get('min_coherence', 0.3):
             status = HealthStatus.CRITICAL
             message = f"Low quantum coherence: {coherence:.1%}"
@@ -1051,7 +1052,7 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = f"Good quantum coherence: {coherence:.1%}"
-        
+
         return HealthCheck(
             name="quantum_coherence",
             status=status,
@@ -1061,15 +1062,15 @@ class QuantumHealthMonitor:
                 'threshold': self.alert_thresholds.get('min_coherence', 0.3)
             }
         )
-    
+
     def _check_resource_utilization(self) -> HealthCheck:
         """Check resource utilization levels"""
         state = self.planner.get_system_state()
         utilizations = state['resource_utilization']
-        
+
         max_util = max(utilizations.values()) if utilizations else 0.0
         max_threshold = self.alert_thresholds.get('max_resource_utilization', 0.9)
-        
+
         if max_util > max_threshold:
             status = HealthStatus.CRITICAL
             message = f"High resource utilization: {max_util:.1%}"
@@ -1079,7 +1080,7 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = f"Normal resource utilization: {max_util:.1%}"
-        
+
         return HealthCheck(
             name="resource_utilization",
             status=status,
@@ -1090,13 +1091,13 @@ class QuantumHealthMonitor:
                 'threshold': max_threshold
             }
         )
-    
+
     def _check_task_queue_health(self) -> HealthCheck:
         """Check task queue health"""
         ready_tasks = self.planner.get_ready_tasks()
         queue_length = len(ready_tasks)
         max_queue = self.alert_thresholds.get('max_queue_length', 100)
-        
+
         if queue_length > max_queue:
             status = HealthStatus.CRITICAL
             message = f"Queue backed up: {queue_length} tasks"
@@ -1106,13 +1107,13 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = f"Queue healthy: {queue_length} tasks"
-        
+
         # Check for very old tasks
         oldest_task_age = 0.0
         if ready_tasks:
             current_time = time.time()
             oldest_task_age = max(current_time - task.created_at for task in ready_tasks)
-        
+
         return HealthCheck(
             name="task_queue_health",
             status=status,
@@ -1123,17 +1124,17 @@ class QuantumHealthMonitor:
                 'threshold': max_queue
             }
         )
-    
+
     def _check_execution_performance(self) -> HealthCheck:
         """Check task execution performance"""
         exec_stats = self.metrics_collector.get_task_execution_stats(window_seconds=300)
-        
+
         success_rate = exec_stats.get('success_rate', 1.0)
         avg_duration = exec_stats.get('avg_duration', 0.0)
-        
+
         min_success_rate = self.alert_thresholds.get('min_success_rate', 0.8)
         max_avg_time = self.alert_thresholds.get('max_avg_execution_time', 60.0)
-        
+
         if success_rate < min_success_rate:
             status = HealthStatus.CRITICAL
             message = f"Low success rate: {success_rate:.1%}"
@@ -1146,14 +1147,14 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = f"Good performance: {success_rate:.1%} success, {avg_duration:.1f}s avg"
-        
+
         return HealthCheck(
             name="execution_performance",
             status=status,
             message=message,
             details=exec_stats
         )
-    
+
     def _check_system_validation(self) -> HealthCheck:
         """Check system validation status"""
         try:
@@ -1161,7 +1162,7 @@ class QuantumHealthMonitor:
                 self.planner.tasks,
                 self.planner.resources
             )
-            
+
             if validation_report.critical_issues > 0:
                 status = HealthStatus.CRITICAL
                 message = f"Critical validation issues: {validation_report.critical_issues}"
@@ -1174,7 +1175,7 @@ class QuantumHealthMonitor:
             else:
                 status = HealthStatus.HEALTHY
                 message = "System validation passed"
-            
+
             return HealthCheck(
                 name="system_validation",
                 status=status,
@@ -1187,7 +1188,7 @@ class QuantumHealthMonitor:
                     'validation_time': validation_report.validation_time
                 }
             )
-        
+
         except Exception as e:
             return HealthCheck(
                 name="system_validation",
@@ -1195,19 +1196,19 @@ class QuantumHealthMonitor:
                 message=f"Validation check failed: {str(e)}",
                 details={'error': str(e)}
             )
-    
+
     def _check_decoherence_levels(self) -> HealthCheck:
         """Check quantum decoherence levels"""
         decoherent_tasks = []
         high_decoherence_tasks = []
-        
+
         for task in self.planner.tasks.values():
             decoherence = task.measure_decoherence()
             if decoherence > 0.9:
                 decoherent_tasks.append((task.id, decoherence))
             elif decoherence > self.alert_thresholds.get('max_decoherence', 0.8):
                 high_decoherence_tasks.append((task.id, decoherence))
-        
+
         if decoherent_tasks:
             status = HealthStatus.CRITICAL
             message = f"{len(decoherent_tasks)} tasks highly decoherent"
@@ -1217,7 +1218,7 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = "Decoherence levels normal"
-        
+
         return HealthCheck(
             name="decoherence_levels",
             status=status,
@@ -1228,39 +1229,39 @@ class QuantumHealthMonitor:
                 'threshold': self.alert_thresholds.get('max_decoherence', 0.8)
             }
         )
-    
+
     def _check_entanglement_integrity(self) -> HealthCheck:
         """Check quantum entanglement integrity"""
         broken_entanglements = []
-        
+
         for task in self.planner.tasks.values():
             for entangled_id in task.entangled_tasks:
                 if entangled_id not in self.planner.tasks:
                     broken_entanglements.append((task.id, entangled_id))
                 elif task.id not in self.planner.tasks[entangled_id].entangled_tasks:
                     broken_entanglements.append((task.id, entangled_id))
-        
+
         if broken_entanglements:
             status = HealthStatus.WARNING
             message = f"{len(broken_entanglements)} broken entanglements"
         else:
             status = HealthStatus.HEALTHY
             message = "Entanglement integrity maintained"
-        
+
         return HealthCheck(
             name="entanglement_integrity",
             status=status,
             message=message,
             details={'broken_entanglements': broken_entanglements}
         )
-    
+
     def _check_memory_usage(self) -> HealthCheck:
         """Check memory usage patterns"""
         # Simple memory utilization check
         state = self.planner.get_system_state()
         memory_util = state['resource_utilization'].get('memory_gb', 0.0)
         max_memory_util = self.alert_thresholds.get('max_memory_utilization', 0.85)
-        
+
         if memory_util > max_memory_util:
             status = HealthStatus.CRITICAL
             message = f"High memory usage: {memory_util:.1%}"
@@ -1270,7 +1271,7 @@ class QuantumHealthMonitor:
         else:
             status = HealthStatus.HEALTHY
             message = f"Normal memory usage: {memory_util:.1%}"
-        
+
         return HealthCheck(
             name="memory_usage",
             status=status,
@@ -1280,7 +1281,7 @@ class QuantumHealthMonitor:
                 'threshold': max_memory_util
             }
         )
-    
+
     def _check_for_alerts(self, health_results: List[HealthCheck]) -> List[HealthCheck]:
         """Check health results for alert conditions"""
         alerts = []
@@ -1288,23 +1289,23 @@ class QuantumHealthMonitor:
             if result.status in [HealthStatus.CRITICAL, HealthStatus.DEGRADED]:
                 alerts.append(result)
         return alerts
-    
+
     def _handle_alerts(self, alerts: List[HealthCheck]) -> None:
         """Handle system alerts"""
         for alert in alerts:
             logger.warning(f"ALERT [{alert.name}]: {alert.message}")
-            
+
             # Record alert metric
             self.metrics_collector.record_metric(
                 f"alert_{alert.name}",
                 1.0,
                 {'status': alert.status.value, 'message': alert.message}
             )
-    
+
     def get_current_health_status(self) -> Dict[str, Any]:
         """Get current system health status"""
         health_results = []
-        
+
         # Run all health checks synchronously
         for check_name, check_func in self.health_checks.items():
             try:
@@ -1317,7 +1318,7 @@ class QuantumHealthMonitor:
                     message=f"Health check failed: {str(e)}"
                 )
                 health_results.append(error_result)
-        
+
         # Determine overall status
         status_priority = {
             HealthStatus.CRITICAL: 4,
@@ -1326,12 +1327,12 @@ class QuantumHealthMonitor:
             HealthStatus.HEALTHY: 1,
             HealthStatus.UNKNOWN: 0
         }
-        
+
         overall_status = HealthStatus.HEALTHY
         for result in health_results:
             if status_priority[result.status] > status_priority[overall_status]:
                 overall_status = result.status
-        
+
         return {
             'overall_status': overall_status.value,
             'timestamp': time.time(),
@@ -1346,13 +1347,13 @@ class QuantumHealthMonitor:
             ],
             'metrics_summary': self._get_metrics_summary()
         }
-    
+
     def _get_metrics_summary(self) -> Dict[str, Any]:
         """Get summary of recent metrics"""
         recent_metrics = self.metrics_collector.get_performance_history(window_seconds=300)
         if not recent_metrics:
             return {}
-        
+
         latest = recent_metrics[-1]
         return {
             'tasks_per_second': latest.tasks_per_second,
@@ -1365,7 +1366,7 @@ class QuantumHealthMonitor:
                 'tpu': latest.tpu_utilization
             }
         }
-    
+
     def export_health_report(self, filename: str) -> None:
         """Export comprehensive health report"""
         report_data = {
@@ -1388,10 +1389,10 @@ class QuantumHealthMonitor:
             'execution_statistics': self.metrics_collector.get_task_execution_stats(),
             'alert_thresholds': self.alert_thresholds
         }
-        
+
         with open(filename, 'w') as f:
             json.dump(report_data, f, indent=2)
-        
+
         logger.info(f"Health report exported to {filename}")
 
 
@@ -1399,7 +1400,7 @@ def create_health_dashboard_data(monitor: QuantumHealthMonitor) -> Dict[str, Any
     """Create data structure for health dashboard visualization"""
     health_status = monitor.get_current_health_status()
     recent_metrics = monitor.metrics_collector.get_performance_history(window_seconds=3600)  # 1 hour
-    
+
     # Prepare time series data
     time_series = {
         'timestamps': [m.timestamp for m in recent_metrics],
@@ -1410,7 +1411,7 @@ def create_health_dashboard_data(monitor: QuantumHealthMonitor) -> Dict[str, Any
         'memory_utilization': [m.memory_utilization for m in recent_metrics],
         'tpu_utilization': [m.tpu_utilization for m in recent_metrics]
     }
-    
+
     return {
         'overall_status': health_status['overall_status'],
         'health_checks': health_status['health_checks'],

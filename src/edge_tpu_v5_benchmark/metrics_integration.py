@@ -11,35 +11,24 @@ This module provides:
 """
 
 import asyncio
-import time
+import json
 import logging
 import statistics
-from typing import Dict, Any, List, Optional, Callable, Tuple, Set
+import threading
+import time
+import warnings
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import deque, defaultdict
 from pathlib import Path
-import json
-import threading
-from concurrent.futures import ThreadPoolExecutor
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
-import pandas as pd
-import warnings
+from typing import Any, Callable, Dict, List, Optional
+
 warnings.filterwarnings('ignore')
 
 # Import from our enhanced modules
-from .performance import (
-    get_global_cache, get_memory_optimizer, get_batch_processor,
-    VectorizedProcessor, MemoryOptimizer
-)
-from .cache import get_cache_manager, PredictiveSmartCache
-from .concurrency import get_job_manager, get_concurrency_benchmark
-from .auto_scaling import get_resource_manager, analyze_scaling_effectiveness
+from .cache import get_cache_manager
+from .concurrency import get_concurrency_benchmark
+from .performance import get_memory_optimizer
 
 
 @dataclass
@@ -52,7 +41,7 @@ class PerformanceMetric:
     source_module: str
     category: str  # 'latency', 'throughput', 'resource_usage', 'error_rate'
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert metric to dictionary."""
         return {
@@ -66,7 +55,7 @@ class PerformanceMetric:
         }
 
 
-@dataclass 
+@dataclass
 class BenchmarkResult:
     """Comprehensive benchmark result with detailed metrics."""
     benchmark_name: str
@@ -77,19 +66,19 @@ class BenchmarkResult:
     configuration: Dict[str, Any]
     environment_info: Dict[str, Any] = field(default_factory=dict)
     error_info: Optional[Dict[str, Any]] = None
-    
+
     @property
     def duration_seconds(self) -> float:
         """Get benchmark duration in seconds."""
         return (self.completed_at - self.started_at).total_seconds()
-    
+
     def get_metric(self, name: str) -> Optional[PerformanceMetric]:
         """Get specific metric by name."""
         for metric in self.metrics:
             if metric.name == name:
                 return metric
         return None
-    
+
     def get_metrics_by_category(self, category: str) -> List[PerformanceMetric]:
         """Get all metrics in a specific category."""
         return [m for m in self.metrics if m.category == category]
@@ -97,7 +86,7 @@ class BenchmarkResult:
 
 class MetricsCollector:
     """Unified metrics collector for all performance modules."""
-    
+
     def __init__(self, collection_interval: float = 5.0):
         """Initialize metrics collector.
         
@@ -111,10 +100,10 @@ class MetricsCollector:
         self.running = False
         self.collector_thread = None
         self.logger = logging.getLogger(__name__)
-        
+
         # Register default collectors
         self._register_default_collectors()
-    
+
     def _register_default_collectors(self):
         """Register collectors for all performance modules."""
         self.active_collectors.update({
@@ -124,31 +113,31 @@ class MetricsCollector:
             'scaling_metrics': self._collect_scaling_metrics,
             'system_metrics': self._collect_system_metrics
         })
-    
+
     async def start_collection(self):
         """Start metrics collection."""
         if self.running:
             return
-        
+
         self.running = True
         self.collector_thread = threading.Thread(target=self._collection_loop, daemon=True)
         self.collector_thread.start()
         self.logger.info("Metrics collection started")
-    
+
     def stop_collection(self):
         """Stop metrics collection."""
         self.running = False
         if self.collector_thread:
             self.collector_thread.join(timeout=2.0)
         self.logger.info("Metrics collection stopped")
-    
+
     def _collection_loop(self):
         """Main metrics collection loop."""
         while self.running:
             try:
                 start_time = time.time()
                 collected_metrics = []
-                
+
                 # Collect from all registered collectors
                 for collector_name, collector_func in self.active_collectors.items():
                     try:
@@ -157,31 +146,31 @@ class MetricsCollector:
                             collected_metrics.extend(metrics)
                     except Exception as e:
                         self.logger.warning(f"Collector {collector_name} failed: {e}")
-                
+
                 # Store collected metrics
                 with self.collection_lock:
                     for metric in collected_metrics:
                         self.metrics_buffer.append(metric)
-                
+
                 # Maintain collection interval
                 elapsed = time.time() - start_time
                 sleep_time = max(0, self.collection_interval - elapsed)
                 time.sleep(sleep_time)
-                
+
             except Exception as e:
                 self.logger.error(f"Metrics collection error: {e}")
                 time.sleep(self.collection_interval)
-    
+
     def _collect_cache_metrics(self) -> List[PerformanceMetric]:
         """Collect cache performance metrics."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             # Get cache manager statistics
             cache_manager = get_cache_manager()
             global_stats = cache_manager.get_global_statistics()
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="cache_hit_rate",
@@ -200,7 +189,7 @@ class MetricsCollector:
                     category="throughput"
                 )
             ])
-            
+
             # Individual cache metrics
             for cache_name, cache_stats in global_stats.get('caches', {}).items():
                 metrics.extend([
@@ -223,26 +212,26 @@ class MetricsCollector:
                         metadata={'cache_name': cache_name}
                     )
                 ])
-        
+
         except Exception as e:
             self.logger.debug(f"Cache metrics collection failed: {e}")
-        
+
         return metrics
-    
+
     def _collect_performance_metrics(self) -> List[PerformanceMetric]:
         """Collect general performance metrics."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             # Memory optimizer metrics
             memory_optimizer = get_memory_optimizer()
-            
+
             # System resource usage
             import psutil
             cpu_percent = psutil.cpu_percent(interval=None)
             memory_info = psutil.virtual_memory()
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="system_cpu_usage",
@@ -269,22 +258,22 @@ class MetricsCollector:
                     category="resource_usage"
                 )
             ])
-        
+
         except Exception as e:
             self.logger.debug(f"Performance metrics collection failed: {e}")
-        
+
         return metrics
-    
+
     def _collect_concurrency_metrics(self) -> List[PerformanceMetric]:
         """Collect concurrency performance metrics."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             # Get concurrency benchmark if available
             benchmark = get_concurrency_benchmark()
             summary = benchmark.get_benchmark_summary()
-            
+
             if summary.get('total_benchmarks', 0) > 0:
                 metrics.extend([
                     PerformanceMetric(
@@ -304,21 +293,21 @@ class MetricsCollector:
                         category="throughput"
                     )
                 ])
-        
+
         except Exception as e:
             self.logger.debug(f"Concurrency metrics collection failed: {e}")
-        
+
         return metrics
-    
+
     def _collect_scaling_metrics(self) -> List[PerformanceMetric]:
         """Collect auto-scaling metrics."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             # This would collect from the resource manager when available
             # For now, we'll create placeholder metrics
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="scaling_actions_total",
@@ -337,25 +326,26 @@ class MetricsCollector:
                     category="throughput"
                 )
             ])
-        
+
         except Exception as e:
             self.logger.debug(f"Scaling metrics collection failed: {e}")
-        
+
         return metrics
-    
+
     def _collect_system_metrics(self) -> List[PerformanceMetric]:
         """Collect system-level metrics."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
-            import psutil
             import threading
-            
+
+            import psutil
+
             # System-wide metrics
             cpu_count = psutil.cpu_count()
             load_avg = psutil.getloadavg() if hasattr(psutil, 'getloadavg') else (0, 0, 0)
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="system_cpu_cores",
@@ -382,7 +372,7 @@ class MetricsCollector:
                     category="resource_usage"
                 )
             ])
-            
+
             # Disk I/O if available
             try:
                 disk_io = psutil.disk_io_counters()
@@ -407,22 +397,22 @@ class MetricsCollector:
                     ])
             except Exception:
                 pass  # Disk I/O might not be available
-        
+
         except Exception as e:
             self.logger.debug(f"System metrics collection failed: {e}")
-        
+
         return metrics
-    
+
     def get_recent_metrics(self, minutes: int = 5) -> List[PerformanceMetric]:
         """Get metrics from the last N minutes."""
         cutoff_time = datetime.now() - timedelta(minutes=minutes)
-        
+
         with self.collection_lock:
             return [
-                metric for metric in self.metrics_buffer 
+                metric for metric in self.metrics_buffer
                 if metric.timestamp > cutoff_time
             ]
-    
+
     def get_metrics_by_category(self, category: str, minutes: int = 10) -> List[PerformanceMetric]:
         """Get recent metrics by category."""
         recent_metrics = self.get_recent_metrics(minutes)
@@ -431,14 +421,14 @@ class MetricsCollector:
 
 class PerformanceDashboard:
     """Real-time performance dashboard and visualization."""
-    
+
     def __init__(self, metrics_collector: MetricsCollector):
         """Initialize performance dashboard."""
         self.metrics_collector = metrics_collector
         self.dashboard_data = {}
         self.update_interval = 30  # seconds
         self.logger = logging.getLogger(__name__)
-    
+
     async def generate_dashboard_data(self) -> Dict[str, Any]:
         """Generate current dashboard data."""
         dashboard_data = {
@@ -448,23 +438,23 @@ class PerformanceDashboard:
             'trends': {},
             'alerts': []
         }
-        
+
         # Get recent metrics
         recent_metrics = self.metrics_collector.get_recent_metrics(minutes=10)
-        
+
         if not recent_metrics:
             return dashboard_data
-        
+
         # Group metrics by category
         by_category = defaultdict(list)
         for metric in recent_metrics:
             by_category[metric.category].append(metric)
-        
+
         # Generate summary statistics
         for category, metrics in by_category.items():
             if not metrics:
                 continue
-            
+
             values = [m.value for m in metrics]
             dashboard_data['categories'][category] = {
                 'count': len(metrics),
@@ -474,37 +464,37 @@ class PerformanceDashboard:
                 'latest_value': metrics[-1].value if metrics else 0,
                 'unit': metrics[0].unit if metrics else 'unknown'
             }
-        
+
         # Calculate trends (simplified)
         dashboard_data['trends'] = self._calculate_trends(recent_metrics)
-        
+
         # Generate alerts
         dashboard_data['alerts'] = self._generate_alerts(recent_metrics)
-        
+
         # Overall system health score
         dashboard_data['summary']['health_score'] = self._calculate_health_score(recent_metrics)
         dashboard_data['summary']['total_metrics'] = len(recent_metrics)
         dashboard_data['summary']['active_modules'] = len(set(m.source_module for m in recent_metrics))
-        
+
         return dashboard_data
-    
+
     def _calculate_trends(self, metrics: List[PerformanceMetric]) -> Dict[str, Dict[str, float]]:
         """Calculate performance trends."""
         trends = {}
-        
+
         # Group by metric name
         by_name = defaultdict(list)
         for metric in metrics:
             by_name[metric.name].append(metric)
-        
+
         for metric_name, metric_list in by_name.items():
             if len(metric_list) < 3:  # Need minimum data for trend
                 continue
-            
+
             # Sort by timestamp
             metric_list.sort(key=lambda x: x.timestamp)
             values = [m.value for m in metric_list]
-            
+
             # Simple linear trend
             if len(values) >= 2:
                 recent_change = (values[-1] - values[0]) / len(values)
@@ -513,23 +503,23 @@ class PerformanceDashboard:
                     'direction': 'up' if recent_change > 0 else 'down' if recent_change < 0 else 'stable',
                     'magnitude': abs(recent_change)
                 }
-        
+
         return trends
-    
+
     def _generate_alerts(self, metrics: List[PerformanceMetric]) -> List[Dict[str, Any]]:
         """Generate performance alerts."""
         alerts = []
-        
+
         # Get latest metrics by name
         latest_by_name = {}
         for metric in metrics:
             if metric.name not in latest_by_name or metric.timestamp > latest_by_name[metric.name].timestamp:
                 latest_by_name[metric.name] = metric
-        
+
         # Check for alert conditions
         for metric_name, metric in latest_by_name.items():
             alert = None
-            
+
             # CPU usage alerts
             if metric.name == 'system_cpu_usage' and metric.value > 90:
                 alert = {
@@ -539,7 +529,7 @@ class PerformanceDashboard:
                     'value': metric.value,
                     'timestamp': metric.timestamp.isoformat()
                 }
-            
+
             # Memory usage alerts
             elif metric.name == 'system_memory_usage' and metric.value > 85:
                 alert = {
@@ -549,7 +539,7 @@ class PerformanceDashboard:
                     'value': metric.value,
                     'timestamp': metric.timestamp.isoformat()
                 }
-            
+
             # Cache hit rate alerts
             elif metric.name == 'cache_hit_rate' and metric.value < 50:
                 alert = {
@@ -559,29 +549,29 @@ class PerformanceDashboard:
                     'value': metric.value,
                     'timestamp': metric.timestamp.isoformat()
                 }
-            
+
             if alert:
                 alerts.append(alert)
-        
+
         return alerts
-    
+
     def _calculate_health_score(self, metrics: List[PerformanceMetric]) -> float:
         """Calculate overall system health score (0-100)."""
         if not metrics:
             return 50.0  # Neutral score
-        
+
         scores = []
-        
+
         # Get latest metrics by name
         latest_by_name = {}
         for metric in metrics:
             if metric.name not in latest_by_name or metric.timestamp > latest_by_name[metric.name].timestamp:
                 latest_by_name[metric.name] = metric
-        
+
         # Score individual metrics
         for metric_name, metric in latest_by_name.items():
             score = 100.0  # Start with perfect score
-            
+
             # CPU usage scoring (lower is better for usage %)
             if metric.name == 'system_cpu_usage':
                 if metric.value > 90:
@@ -594,7 +584,7 @@ class PerformanceDashboard:
                     score = 80
                 else:
                     score = 100
-            
+
             # Memory usage scoring
             elif metric.name == 'system_memory_usage':
                 if metric.value > 95:
@@ -607,11 +597,11 @@ class PerformanceDashboard:
                     score = 80
                 else:
                     score = 100
-            
+
             # Cache hit rate scoring (higher is better)
             elif metric.name == 'cache_hit_rate':
                 score = max(0, metric.value)  # Hit rate is already 0-100
-            
+
             # Throughput metrics (higher is generally better)
             elif metric.category == 'throughput' and 'throughput' in metric.name:
                 # Normalize based on expected ranges
@@ -625,16 +615,16 @@ class PerformanceDashboard:
                     score = 40
                 else:
                     score = 20
-            
+
             scores.append(score)
-        
+
         # Return weighted average
         return statistics.mean(scores) if scores else 50.0
-    
+
     async def save_dashboard_snapshot(self, output_path: Path):
         """Save current dashboard data to file."""
         dashboard_data = await self.generate_dashboard_data()
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w') as f:
             json.dump(dashboard_data, f, indent=2, default=str)
@@ -642,44 +632,44 @@ class PerformanceDashboard:
 
 class BenchmarkSuite:
     """Comprehensive benchmark suite with automated analysis."""
-    
+
     def __init__(self, metrics_collector: MetricsCollector):
         """Initialize benchmark suite."""
         self.metrics_collector = metrics_collector
         self.benchmark_results: List[BenchmarkResult] = []
         self.logger = logging.getLogger(__name__)
         self.dashboard = PerformanceDashboard(metrics_collector)
-    
-    async def run_comprehensive_benchmark(self, 
+
+    async def run_comprehensive_benchmark(self,
                                         benchmark_config: Dict[str, Any] = None) -> BenchmarkResult:
         """Run comprehensive benchmark across all performance modules."""
         config = benchmark_config or {}
         benchmark_name = config.get('name', f'comprehensive_benchmark_{int(time.time())}')
-        
+
         self.logger.info(f"Starting comprehensive benchmark: {benchmark_name}")
         started_at = datetime.now()
         success = True
         metrics = []
         error_info = None
-        
+
         try:
             # Benchmark cache performance
             cache_metrics = await self._benchmark_cache_performance(config.get('cache', {}))
             metrics.extend(cache_metrics)
-            
+
             # Benchmark concurrency performance
             concurrency_metrics = await self._benchmark_concurrency_performance(config.get('concurrency', {}))
             metrics.extend(concurrency_metrics)
-            
+
             # Benchmark memory optimization
             memory_metrics = await self._benchmark_memory_performance(config.get('memory', {}))
             metrics.extend(memory_metrics)
-            
+
             # Benchmark auto-scaling (if enabled)
             if config.get('include_scaling', False):
                 scaling_metrics = await self._benchmark_scaling_performance(config.get('scaling', {}))
                 metrics.extend(scaling_metrics)
-            
+
         except Exception as e:
             success = False
             error_info = {
@@ -688,9 +678,9 @@ class BenchmarkSuite:
                 'timestamp': datetime.now().isoformat()
             }
             self.logger.error(f"Benchmark failed: {e}")
-        
+
         completed_at = datetime.now()
-        
+
         # Create benchmark result
         result = BenchmarkResult(
             benchmark_name=benchmark_name,
@@ -702,24 +692,24 @@ class BenchmarkSuite:
             environment_info=self._collect_environment_info(),
             error_info=error_info
         )
-        
+
         self.benchmark_results.append(result)
         self.logger.info(f"Benchmark completed: {benchmark_name} (success={success})")
-        
+
         return result
-    
+
     async def _benchmark_cache_performance(self, config: Dict[str, Any]) -> List[PerformanceMetric]:
         """Benchmark cache performance."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             cache_manager = get_cache_manager()
-            
+
             # Test cache operations
             test_keys = [f"test_key_{i}" for i in range(config.get('test_items', 100))]
             test_data = {"data": "x" * config.get('data_size', 1000)}
-            
+
             # Measure cache write performance
             write_start = time.time()
             for key in test_keys:
@@ -727,7 +717,7 @@ class BenchmarkSuite:
                 if cache:
                     await cache.set(key, test_data)
             write_time = time.time() - write_start
-            
+
             # Measure cache read performance
             read_start = time.time()
             hits = 0
@@ -738,7 +728,7 @@ class BenchmarkSuite:
                     if result is not None:
                         hits += 1
             read_time = time.time() - read_start
-            
+
             # Calculate metrics
             metrics.extend([
                 PerformanceMetric(
@@ -766,29 +756,29 @@ class BenchmarkSuite:
                     category="throughput"
                 )
             ])
-            
+
         except Exception as e:
             self.logger.warning(f"Cache benchmark failed: {e}")
-        
+
         return metrics
-    
+
     async def _benchmark_concurrency_performance(self, config: Dict[str, Any]) -> List[PerformanceMetric]:
         """Benchmark concurrency performance."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             benchmark = get_concurrency_benchmark()
-            
+
             # Run concurrency benchmark
             num_tasks = config.get('num_tasks', 100)
             complexity = config.get('complexity', 'simple')
-            
+
             result = await benchmark.benchmark_scheduler_performance(
                 num_tasks=num_tasks,
                 task_complexity=complexity
             )
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="concurrency_throughput",
@@ -815,42 +805,42 @@ class BenchmarkSuite:
                     category="throughput"
                 )
             ])
-            
+
         except Exception as e:
             self.logger.warning(f"Concurrency benchmark failed: {e}")
-        
+
         return metrics
-    
+
     async def _benchmark_memory_performance(self, config: Dict[str, Any]) -> List[PerformanceMetric]:
         """Benchmark memory optimization performance."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             import psutil
-            
+
             # Measure memory before/after operations
             process = psutil.Process()
             initial_memory = process.memory_info().rss / (1024*1024)  # MB
-            
+
             # Create some memory pressure
             test_data = []
             data_size = config.get('memory_test_size', 1000)
-            
+
             for i in range(data_size):
                 test_data.append([j for j in range(100)])
-            
+
             peak_memory = process.memory_info().rss / (1024*1024)  # MB
-            
+
             # Clean up
             del test_data
-            
+
             # Force garbage collection
             import gc
             collected = gc.collect()
-            
+
             final_memory = process.memory_info().rss / (1024*1024)  # MB
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="memory_initial_usage",
@@ -885,21 +875,21 @@ class BenchmarkSuite:
                     category="throughput"
                 )
             ])
-            
+
         except Exception as e:
             self.logger.warning(f"Memory benchmark failed: {e}")
-        
+
         return metrics
-    
+
     async def _benchmark_scaling_performance(self, config: Dict[str, Any]) -> List[PerformanceMetric]:
         """Benchmark auto-scaling performance."""
         metrics = []
         timestamp = datetime.now()
-        
+
         try:
             # This would integrate with the actual scaling manager
             # For now, create placeholder metrics
-            
+
             metrics.extend([
                 PerformanceMetric(
                     name="scaling_response_time",
@@ -918,17 +908,18 @@ class BenchmarkSuite:
                     category="throughput"
                 )
             ])
-            
+
         except Exception as e:
             self.logger.warning(f"Scaling benchmark failed: {e}")
-        
+
         return metrics
-    
+
     def _collect_environment_info(self) -> Dict[str, Any]:
         """Collect environment information for benchmark context."""
         import platform
+
         import psutil
-        
+
         return {
             'platform': platform.platform(),
             'python_version': platform.python_version(),
@@ -936,12 +927,12 @@ class BenchmarkSuite:
             'total_memory_gb': psutil.virtual_memory().total / (1024**3),
             'timestamp': datetime.now().isoformat()
         }
-    
+
     def generate_performance_report(self, output_path: Path = None) -> Dict[str, Any]:
         """Generate comprehensive performance report."""
         if not self.benchmark_results:
             return {'error': 'No benchmark results available'}
-        
+
         report = {
             'summary': {
                 'total_benchmarks': len(self.benchmark_results),
@@ -953,7 +944,7 @@ class BenchmarkSuite:
             'performance_trends': {},
             'recommendations': []
         }
-        
+
         # Process each benchmark result
         for result in self.benchmark_results:
             benchmark_summary = {
@@ -963,12 +954,12 @@ class BenchmarkSuite:
                 'metrics_count': len(result.metrics),
                 'categories': {}
             }
-            
+
             # Group metrics by category
             by_category = defaultdict(list)
             for metric in result.metrics:
                 by_category[metric.category].append(metric.value)
-            
+
             for category, values in by_category.items():
                 benchmark_summary['categories'][category] = {
                     'count': len(values),
@@ -976,37 +967,37 @@ class BenchmarkSuite:
                     'max': max(values),
                     'min': min(values)
                 }
-            
+
             report['benchmarks'].append(benchmark_summary)
-        
+
         # Generate recommendations
         report['recommendations'] = self._generate_performance_recommendations()
-        
+
         # Save report if path provided
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w') as f:
                 json.dump(report, f, indent=2, default=str)
-        
+
         return report
-    
+
     def _generate_performance_recommendations(self) -> List[Dict[str, Any]]:
         """Generate performance optimization recommendations."""
         recommendations = []
-        
+
         if not self.benchmark_results:
             return recommendations
-        
+
         # Analyze recent benchmark results
         recent_results = self.benchmark_results[-5:]  # Last 5 benchmarks
-        
+
         # Check for consistent low cache hit rates
         cache_hit_rates = []
         for result in recent_results:
             cache_metric = result.get_metric('cache_hit_rate_test')
             if cache_metric:
                 cache_hit_rates.append(cache_metric.value)
-        
+
         if cache_hit_rates and statistics.mean(cache_hit_rates) < 70:
             recommendations.append({
                 'category': 'cache',
@@ -1015,14 +1006,14 @@ class BenchmarkSuite:
                 'description': f'Average cache hit rate is {statistics.mean(cache_hit_rates):.1f}%. Consider increasing cache size or improving cache warming strategies.',
                 'impact': 'medium'
             })
-        
+
         # Check for high memory usage
         memory_peaks = []
         for result in recent_results:
             memory_metric = result.get_metric('memory_peak_usage')
             if memory_metric:
                 memory_peaks.append(memory_metric.value)
-        
+
         if memory_peaks and statistics.mean(memory_peaks) > 1000:  # >1GB
             recommendations.append({
                 'category': 'memory',
@@ -1031,7 +1022,7 @@ class BenchmarkSuite:
                 'description': f'Average peak memory usage is {statistics.mean(memory_peaks):.0f}MB. Consider implementing object pooling or reducing memory allocations.',
                 'impact': 'high'
             })
-        
+
         # Check for low throughput
         throughputs = []
         for result in recent_results:
@@ -1039,16 +1030,16 @@ class BenchmarkSuite:
             if throughput_metrics:
                 avg_throughput = statistics.mean([m.value for m in throughput_metrics])
                 throughputs.append(avg_throughput)
-        
+
         if throughputs and statistics.mean(throughputs) < 50:
             recommendations.append({
                 'category': 'performance',
                 'priority': 'medium',
                 'title': 'Improve System Throughput',
-                'description': f'Average throughput metrics are below expected levels. Consider scaling up resources or optimizing algorithms.',
+                'description': 'Average throughput metrics are below expected levels. Consider scaling up resources or optimizing algorithms.',
                 'impact': 'medium'
             })
-        
+
         return recommendations
 
 
@@ -1079,12 +1070,12 @@ async def run_quick_performance_check() -> Dict[str, Any]:
     """Run a quick performance check across all modules."""
     collector = get_metrics_collector()
     await collector.start_collection()
-    
+
     # Let it collect for a short time
     await asyncio.sleep(5)
-    
+
     collector.stop_collection()
-    
+
     # Generate dashboard data
     dashboard = PerformanceDashboard(collector)
     return await dashboard.generate_dashboard_data()
@@ -1093,10 +1084,10 @@ async def run_quick_performance_check() -> Dict[str, Any]:
 async def run_full_benchmark_suite(config: Dict[str, Any] = None) -> BenchmarkResult:
     """Run the full benchmark suite with optional configuration."""
     suite = get_benchmark_suite()
-    
+
     # Start metrics collection
     await suite.metrics_collector.start_collection()
-    
+
     try:
         # Run comprehensive benchmark
         result = await suite.run_comprehensive_benchmark(config)
