@@ -90,6 +90,15 @@ from .security import (
     SecurityContext,
     SecurityLoggingFilter,
 )
+from .adaptive_quantum_error_mitigation import (
+    AdaptiveErrorMitigationFramework,
+    MLWorkloadProfiler,
+    ErrorMitigationType,
+    MLWorkloadType,
+    WorkloadCharacteristics,
+    ErrorProfile,
+    MitigationStrategy,
+)
 
 __all__ = [
     # Core classes
@@ -191,6 +200,15 @@ __all__ = [
     "create_simple_planner",
     "create_secure_planner",
     "create_performance_planner",
+
+    # Adaptive error mitigation
+    "AdaptiveErrorMitigationFramework",
+    "MLWorkloadProfiler",
+    "ErrorMitigationType",
+    "MLWorkloadType",
+    "WorkloadCharacteristics",
+    "ErrorProfile",
+    "MitigationStrategy",
 
     # Metadata
     "__version__"
