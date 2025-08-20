@@ -1,0 +1,210 @@
+{
+  "assessment_timestamp": "2025-08-20T13:05:56.436526+00:00",
+  "total_findings": 15,
+  "findings_by_category": {
+    "quantum_security": 3,
+    "cryptography": 4,
+    "data_protection": 2,
+    "authorization": 1,
+    "logging_monitoring": 1,
+    "input_validation": 2,
+    "error_handling": 2
+  },
+  "findings_by_severity": {
+    "medium": 7,
+    "high": 7,
+    "critical": 1
+  },
+  "security_metrics": {
+    "total_findings": 15,
+    "critical_count": 1,
+    "high_count": 7,
+    "medium_count": 7,
+    "low_count": 0,
+    "info_count": 0,
+    "compliance_score": 1.0,
+    "quantum_security_score": 0.3999999999999999,
+    "overall_security_score": 0.6066666666666667
+  },
+  "recommendations": [
+    "\ud83d\udea8 URGENT: Address 1 critical vulnerabilities immediately",
+    "\ud83d\udd2c Implement quantum-resistant cryptography and quantum state protection",
+    "\ud83d\udccb Address compliance security gaps to maintain regulatory certification",
+    "\ud83d\udd10 Migrate to post-quantum cryptographic algorithms",
+    "\ud83d\udee1\ufe0f Implement comprehensive input validation for quantum parameters",
+    "\ud83d\udcca Add cryptographic integrity protection for audit trails",
+    "\ud83d\udd12 Enhance error handling to prevent information disclosure",
+    "\u26a1 Implement quantum noise injection for side-channel protection"
+  ],
+  "compliance_impact": {
+    "ISO_27001": [
+      "QS001",
+      "QS003",
+      "QC002",
+      "IV001",
+      "EH001"
+    ],
+    "GDPR": [
+      "QS001"
+    ],
+    "SOX": [
+      "QS002",
+      "IV002"
+    ],
+    "FedRAMP": [
+      "QS002",
+      "QC001",
+      "IV002"
+    ],
+    "NIST": [
+      "QC001",
+      "CR001"
+    ],
+    "GDPR_ART_4": [
+      "CS001"
+    ],
+    "GDPR_ART_25": [
+      "CS001"
+    ],
+    "GDPR_ART_7": [
+      "CS002"
+    ],
+    "GDPR_ART_12": [
+      "CS002"
+    ],
+    "SOX_404": [
+      "CS003"
+    ],
+    "SOX_302": [
+      "CS003"
+    ],
+    "HIPAA_164_312": [
+      "CS004"
+    ],
+    "FIPS_140_2": [
+      "CR001",
+      "CR002"
+    ],
+    "Common_Criteria": [
+      "CR002"
+    ],
+    "OWASP_TOP_10": [
+      "EH001"
+    ],
+    "Trade_Secret": [
+      "EH002"
+    ],
+    "IP_Protection": [
+      "EH002"
+    ]
+  },
+  "quantum_specific_risks": {
+    "quantum_state_exposure": 1,
+    "quantum_algorithm_manipulation": 1,
+    "quantum_cryptographic_vulnerabilities": 0,
+    "quantum_side_channel_attacks": 1,
+    "overall_quantum_risk_level": "high"
+  },
+  "remediation_priority": [
+    {
+      "priority": 1,
+      "finding_id": "CS003",
+      "title": "Audit Trail Tampering Vulnerability",
+      "severity": "critical",
+      "category": "logging_monitoring",
+      "estimated_effort": "high",
+      "timeline": "immediate",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 2,
+      "finding_id": "CS004",
+      "title": "PHI Quantum Processing Risk",
+      "severity": "high",
+      "category": "data_protection",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 1
+    },
+    {
+      "priority": 3,
+      "finding_id": "IV001",
+      "title": "Quantum Circuit Injection Vulnerability",
+      "severity": "high",
+      "category": "input_validation",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 1
+    },
+    {
+      "priority": 4,
+      "finding_id": "QC001",
+      "title": "Classical Cryptography Vulnerable to Quantum Attack",
+      "severity": "high",
+      "category": "cryptography",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 5,
+      "finding_id": "CS002",
+      "title": "Inadequate Consent Verification",
+      "severity": "high",
+      "category": "authorization",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 6,
+      "finding_id": "CR002",
+      "title": "Insufficient Entropy for Quantum Operations",
+      "severity": "high",
+      "category": "cryptography",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 7,
+      "finding_id": "EH002",
+      "title": "Quantum Error State Exposure",
+      "severity": "high",
+      "category": "error_handling",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 8,
+      "finding_id": "QS002",
+      "title": "Quantum Algorithm Parameter Injection",
+      "severity": "high",
+      "category": "quantum_security",
+      "estimated_effort": "high",
+      "timeline": "30_days",
+      "compliance_urgency": 2
+    },
+    {
+      "priority": 9,
+      "finding_id": "QC002",
+      "title": "Missing Quantum Key Distribution",
+      "severity": "medium",
+      "category": "cryptography",
+      "estimated_effort": "medium",
+      "timeline": "30_days",
+      "compliance_urgency": 1
+    },
+    {
+      "priority": 10,
+      "finding_id": "QS003",
+      "title": "Quantum Entanglement Side-Channel",
+      "severity": "medium",
+      "category": "quantum_security",
+      "estimated_effort": "medium",
+      "timeline": "30_days",
+      "compliance_urgency": 1
+    }
+  ]
+}
