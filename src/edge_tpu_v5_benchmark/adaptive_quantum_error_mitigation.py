@@ -22,8 +22,33 @@ try:
 except ImportError:
     TORCH_AVAILABLE = False
 
-from .quantum_computing_research import QuantumCircuit, QuantumResult
 from .security import SecurityContext
+
+# Simple QuantumCircuit implementation to avoid circular dependency
+@dataclass
+class SimpleQuantumCircuit:
+    """Simplified QuantumCircuit implementation to avoid circular imports."""
+    n_qubits: int
+    name: str = "circuit"
+    gates: List[Dict[str, Any]] = field(default_factory=list)
+    measurements: List[int] = field(default_factory=list)
+    
+    def depth(self) -> int:
+        """Calculate circuit depth."""
+        return len(self.gates)
+    
+    def add_measurement(self, qubit: int):
+        """Add measurement to qubit."""
+        if qubit not in self.measurements:
+            self.measurements.append(qubit)
+
+# Type imports to avoid circular dependency
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .quantum_computing_research import QuantumCircuit, QuantumResult
+else:
+    # Use simple implementation when not type checking
+    QuantumCircuit = SimpleQuantumCircuit
 
 
 class ErrorMitigationType(Enum):

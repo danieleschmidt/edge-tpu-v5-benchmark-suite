@@ -1,0 +1,607 @@
+{
+  "multi_tpu_parallel": {
+    "multi_tpu_results": {
+      "data_parallel_quantum_annealing": {
+        "execution_time": 0.12295866012573242,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 6.99264915013553,
+        "compute_efficiency": 32.53125884675196
+      },
+      "data_parallel_ml_predictive": {
+        "execution_time": 0.10247683525085449,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 6.476352610559043,
+        "compute_efficiency": 39.03321165420793
+      },
+      "data_parallel_adaptive_hybrid": {
+        "execution_time": 0.10256075859069824,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 6.476352610559043,
+        "compute_efficiency": 39.0012715873455
+      },
+      "model_parallel_quantum_annealing": {
+        "execution_time": 0.12014245986938477,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 9.323532200180706,
+        "compute_efficiency": 33.29380807042472
+      },
+      "model_parallel_ml_predictive": {
+        "execution_time": 0.10245180130004883,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 10.362164176894469,
+        "compute_efficiency": 39.04274936353016
+      },
+      "model_parallel_adaptive_hybrid": {
+        "execution_time": 0.10267901420593262,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 10.362164176894469,
+        "compute_efficiency": 38.9563537489522
+      },
+      "quantum_distributed_quantum_annealing": {
+        "execution_time": 0.13440680503845215,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 11.794121288317042,
+        "compute_efficiency": 29.760397911814426
+      },
+      "quantum_distributed_ml_predictive": {
+        "execution_time": 0.1170656681060791,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 12.952705221118086,
+        "compute_efficiency": 34.16885637534139
+      },
+      "quantum_distributed_adaptive_hybrid": {
+        "execution_time": 0.10272932052612305,
+        "successful_tasks": 4,
+        "total_tasks": 4,
+        "success_rate": 1.0,
+        "avg_throughput": 12.952705221118086,
+        "compute_efficiency": 38.93727690900905
+      }
+    },
+    "performance_metrics": {
+      "total_devices": 4,
+      "active_devices": 4,
+      "total_compute_capacity": 31.07844066726902,
+      "average_device_load": 6.938893903907228e-18,
+      "average_temperature": 39.52622236572701,
+      "total_tasks_completed": 36,
+      "average_execution_time": 0.10117638962609427,
+      "parallel_efficiency": 31.07844066726902,
+      "devices": [
+        {
+          "device_id": "tpu_0",
+          "device_path": "/dev/apex_0",
+          "compute_capability": 7.221678954671638,
+          "memory_gb": 35.58613308547314,
+          "power_efficiency": 50.0,
+          "current_load": 0.0,
+          "temperature_celsius": 40.68632413274727,
+          "total_tasks_completed": 2,
+          "avg_execution_time": 0.10088121891021729,
+          "error_rate": 0.0,
+          "last_heartbeat": 1755955454.1569078,
+          "status": "active"
+        },
+        {
+          "device_id": "tpu_1",
+          "device_path": "/dev/apex_1",
+          "compute_capability": 7.090358237010667,
+          "memory_gb": 32.65841148071774,
+          "power_efficiency": 50.0,
+          "current_load": 0.0,
+          "temperature_celsius": 46.958010860849036,
+          "total_tasks_completed": 4,
+          "avg_execution_time": 0.10056453943252563,
+          "error_rate": 0.0,
+          "last_heartbeat": 1755955454.4973235,
+          "status": "active"
+        },
+        {
+          "device_id": "tpu_2",
+          "device_path": "/dev/apex_2",
+          "compute_capability": 8.131266661507992,
+          "memory_gb": 30.288833588962724,
+          "power_efficiency": 50.0,
+          "current_load": 0.0,
+          "temperature_celsius": 38.13140854528943,
+          "total_tasks_completed": 2,
+          "avg_execution_time": 0.10064160823822021,
+          "error_rate": 0.0,
+          "last_heartbeat": 1755955454.1559815,
+          "status": "active"
+        },
+        {
+          "device_id": "tpu_3",
+          "device_path": "/dev/apex_3",
+          "compute_capability": 8.635136814078724,
+          "memory_gb": 34.294553287617084,
+          "power_efficiency": 50.0,
+          "current_load": 2.7755575615628914e-17,
+          "temperature_celsius": 32.32914592402229,
+          "total_tasks_completed": 28,
+          "avg_execution_time": 0.10261819192341395,
+          "error_rate": 0.0,
+          "last_heartbeat": 1755955454.717489,
+          "status": "active"
+        }
+      ]
+    },
+    "best_configuration": "model_parallel_ml_predictive",
+    "parallel_efficiency": 31.07844066726902
+  },
+  "advanced_telemetry": {
+    "dashboard_data": {
+      "timestamp": 1755955455.9655318,
+      "time_range_hours": 1,
+      "metrics": {
+        "throughput": {
+          "current": 135,
+          "min": 85,
+          "max": 140,
+          "avg": 114.5,
+          "trend": "increasing",
+          "data_points": 10
+        },
+        "latency": {
+          "current": 14,
+          "min": 8,
+          "max": 16,
+          "avg": 11.8,
+          "trend": "increasing",
+          "data_points": 10
+        },
+        "error_rate": {
+          "current": 0.015,
+          "min": 0.01,
+          "max": 0.08,
+          "avg": 0.027,
+          "trend": "decreasing",
+          "data_points": 10
+        },
+        "quantum_coherence": {
+          "current": {
+            "primary": 0.88,
+            "coherence_time": 55
+          },
+          "min": 0.65,
+          "max": 0.95,
+          "avg": 0.87,
+          "trend": "stable",
+          "data_points": 10
+        },
+        "memory_usage": {
+          "current": 60,
+          "min": 18.1,
+          "max": 82,
+          "avg": 58.736363636363635,
+          "trend": "increasing",
+          "data_points": 11
+        },
+        "cpu_usage": {
+          "current": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "avg": 0.0,
+          "trend": "stable",
+          "data_points": 1
+        },
+        "memory_available_gb": {
+          "current": 3.1514015197753906,
+          "min": 3.1514015197753906,
+          "max": 3.1514015197753906,
+          "avg": 3.1514015197753906,
+          "trend": "stable",
+          "data_points": 1
+        },
+        "process_cpu": {
+          "current": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "avg": 0.0,
+          "trend": "stable",
+          "data_points": 1
+        },
+        "process_memory_mb": {
+          "current": 165.234375,
+          "min": 165.234375,
+          "max": 165.234375,
+          "avg": 165.234375,
+          "trend": "stable",
+          "data_points": 1
+        }
+      },
+      "alerts": [],
+      "system_health": {
+        "score": 100.0,
+        "status": "healthy",
+        "active_alerts": 0,
+        "critical_alerts": 0
+      },
+      "quantum_state": {
+        "quantum_coherence": {
+          "value": {
+            "primary": 0.88,
+            "coherence_time": 55
+          },
+          "timestamp": 1755955455.863421,
+          "labels": {
+            "quantum_device": "qpu_1"
+          },
+          "type": "gauge"
+        }
+      },
+      "performance_trends": {
+        "throughput": [
+          {
+            "timestamp": 1755955454.9573476,
+            "value": 100
+          },
+          {
+            "timestamp": 1755955455.058114,
+            "value": 120
+          },
+          {
+            "timestamp": 1755955455.1587,
+            "value": 95
+          },
+          {
+            "timestamp": 1755955455.2592502,
+            "value": 130
+          },
+          {
+            "timestamp": 1755955455.359865,
+            "value": 85
+          },
+          {
+            "timestamp": 1755955455.4610014,
+            "value": 140
+          },
+          {
+            "timestamp": 1755955455.5615273,
+            "value": 110
+          },
+          {
+            "timestamp": 1755955455.6620817,
+            "value": 125
+          },
+          {
+            "timestamp": 1755955455.762535,
+            "value": 105
+          },
+          {
+            "timestamp": 1755955455.8632815,
+            "value": 135
+          }
+        ],
+        "latency": [
+          {
+            "timestamp": 1755955454.9573944,
+            "value": 10
+          },
+          {
+            "timestamp": 1755955455.0581737,
+            "value": 12
+          },
+          {
+            "timestamp": 1755955455.158767,
+            "value": 9
+          },
+          {
+            "timestamp": 1755955455.2593274,
+            "value": 15
+          },
+          {
+            "timestamp": 1755955455.3599348,
+            "value": 8
+          },
+          {
+            "timestamp": 1755955455.4610648,
+            "value": 16
+          },
+          {
+            "timestamp": 1755955455.5615923,
+            "value": 11
+          },
+          {
+            "timestamp": 1755955455.6621404,
+            "value": 13
+          },
+          {
+            "timestamp": 1755955455.7626028,
+            "value": 10
+          },
+          {
+            "timestamp": 1755955455.8633595,
+            "value": 14
+          }
+        ],
+        "error_rate": [
+          {
+            "timestamp": 1755955454.9574115,
+            "value": 0.01
+          },
+          {
+            "timestamp": 1755955455.0581863,
+            "value": 0.02
+          },
+          {
+            "timestamp": 1755955455.1587794,
+            "value": 0.015
+          },
+          {
+            "timestamp": 1755955455.259341,
+            "value": 0.05
+          },
+          {
+            "timestamp": 1755955455.3599505,
+            "value": 0.08
+          },
+          {
+            "timestamp": 1755955455.4610806,
+            "value": 0.03
+          },
+          {
+            "timestamp": 1755955455.561607,
+            "value": 0.02
+          },
+          {
+            "timestamp": 1755955455.662156,
+            "value": 0.01
+          },
+          {
+            "timestamp": 1755955455.76262,
+            "value": 0.02
+          },
+          {
+            "timestamp": 1755955455.8633769,
+            "value": 0.015
+          }
+        ],
+        "cpu_usage": [
+          {
+            "timestamp": 1755955454.958085,
+            "value": 0.0
+          }
+        ],
+        "memory_usage": [
+          {
+            "timestamp": 1755955454.9574459,
+            "value": 45
+          },
+          {
+            "timestamp": 1755955454.958116,
+            "value": 18.1
+          },
+          {
+            "timestamp": 1755955455.0582292,
+            "value": 52
+          },
+          {
+            "timestamp": 1755955455.158824,
+            "value": 48
+          },
+          {
+            "timestamp": 1755955455.2593873,
+            "value": 65
+          },
+          {
+            "timestamp": 1755955455.3605871,
+            "value": 78
+          },
+          {
+            "timestamp": 1755955455.4611604,
+            "value": 82
+          },
+          {
+            "timestamp": 1755955455.56172,
+            "value": 75
+          },
+          {
+            "timestamp": 1755955455.6622028,
+            "value": 68
+          },
+          {
+            "timestamp": 1755955455.76277,
+            "value": 55
+          },
+          {
+            "timestamp": 1755955455.8634312,
+            "value": 60
+          }
+        ]
+      }
+    },
+    "active_alerts": 0,
+    "system_health_score": 100.0,
+    "metrics_count": 9,
+    "trace_analysis": {
+      "trace_id": "trace_1755955455965124_1595",
+      "duration": 0.0001914501190185547,
+      "span_count": 4,
+      "spans": [
+        {
+          "span_id": "span_1755955455965314_2154",
+          "trace_id": "trace_1755955455965124_1595",
+          "operation_name": "benchmark_execution",
+          "start_time": 1755955455.9653316,
+          "end_time": 1755955455.965523,
+          "duration": 0.0001914501190185547,
+          "parent_span_id": null,
+          "tags": {
+            "operation": "benchmark"
+          },
+          "logs": [],
+          "quantum_context": {}
+        },
+        {
+          "span_id": "span_1755955455965384_2074",
+          "trace_id": "trace_1755955455965124_1595",
+          "operation_name": "model_inference_0",
+          "start_time": 1755955455.9653947,
+          "end_time": 1755955455.9654233,
+          "duration": 2.86102294921875e-05,
+          "parent_span_id": "span_1755955455965314_2154",
+          "tags": {
+            "model": "model_0",
+            "device": "tpu_0"
+          },
+          "logs": [
+            {
+              "timestamp": 1755955455.9654105,
+              "level": "INFO",
+              "message": "Processing model 0"
+            }
+          ],
+          "quantum_context": {
+            "coherence": 0.9,
+            "entanglement_fidelity": 0.85
+          }
+        },
+        {
+          "span_id": "span_1755955455965435_5405",
+          "trace_id": "trace_1755955455965124_1595",
+          "operation_name": "model_inference_1",
+          "start_time": 1755955455.9654465,
+          "end_time": 1755955455.9654574,
+          "duration": 1.0967254638671875e-05,
+          "parent_span_id": "span_1755955455965314_2154",
+          "tags": {
+            "model": "model_1",
+            "device": "tpu_1"
+          },
+          "logs": [
+            {
+              "timestamp": 1755955455.9654531,
+              "level": "INFO",
+              "message": "Processing model 1"
+            }
+          ],
+          "quantum_context": {
+            "coherence": 0.8,
+            "entanglement_fidelity": 0.85
+          }
+        },
+        {
+          "span_id": "span_1755955455965461_9964",
+          "trace_id": "trace_1755955455965124_1595",
+          "operation_name": "model_inference_2",
+          "start_time": 1755955455.9654703,
+          "end_time": 1755955455.9655135,
+          "duration": 4.315376281738281e-05,
+          "parent_span_id": "span_1755955455965314_2154",
+          "tags": {
+            "model": "model_2",
+            "device": "tpu_2"
+          },
+          "logs": [
+            {
+              "timestamp": 1755955455.9655104,
+              "level": "INFO",
+              "message": "Processing model 2"
+            }
+          ],
+          "quantum_context": {
+            "coherence": 0.7,
+            "entanglement_fidelity": 0.85
+          }
+        }
+      ]
+    },
+    "anomaly_detection_active": false,
+    "metrics_export_size": 1206
+  },
+  "ml_prediction": {
+    "initial_predictions": 9,
+    "training_samples": 50,
+    "prediction_improvement": 0.0,
+    "torch_available": false
+  },
+  "quantum_load_balancing": {
+    "strategy_results": {
+      "round_robin": {
+        "assigned_tasks": 12,
+        "load_balance_score": 0.68056171750003,
+        "thermal_awareness_score": 0.41250000000000003,
+        "task_distribution": {
+          "tpu_0": 3,
+          "tpu_1": 3,
+          "tpu_2": 3,
+          "tpu_3": 3
+        },
+        "load_distribution": {
+          "tpu_0": 0.75,
+          "tpu_1": 1.125,
+          "tpu_2": 1.5,
+          "tpu_3": 1.875
+        }
+      },
+      "weighted_least_connections": {
+        "assigned_tasks": 12,
+        "load_balance_score": 1.0,
+        "thermal_awareness_score": 0.5,
+        "task_distribution": {
+          "tpu_0": 12
+        },
+        "load_distribution": {
+          "tpu_0": 5.25
+        }
+      },
+      "quantum_annealing": {
+        "assigned_tasks": 12,
+        "load_balance_score": 0.9416788156480196,
+        "thermal_awareness_score": 0.48750000000000004,
+        "task_distribution": {
+          "tpu_2": 4,
+          "tpu_0": 4,
+          "tpu_3": 4
+        },
+        "load_distribution": {
+          "tpu_2": 1.75,
+          "tpu_0": 1.875,
+          "tpu_3": 1.625
+        }
+      },
+      "ml_predictive": {
+        "assigned_tasks": 12,
+        "load_balance_score": 1.0,
+        "thermal_awareness_score": 0.1875,
+        "task_distribution": {
+          "tpu_1": 12
+        },
+        "load_distribution": {
+          "tpu_1": 5.25
+        }
+      },
+      "adaptive_hybrid": {
+        "assigned_tasks": 12,
+        "load_balance_score": 1.0,
+        "thermal_awareness_score": 0.1875,
+        "task_distribution": {
+          "tpu_1": 12
+        },
+        "load_distribution": {
+          "tpu_1": 5.25
+        }
+      }
+    },
+    "best_strategy": "weighted_least_connections",
+    "load_balance_improvement": 1.0,
+    "thermal_optimization": 0.5
+  }
+}

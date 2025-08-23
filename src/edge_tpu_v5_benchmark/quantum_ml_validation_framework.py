@@ -20,7 +20,11 @@ from .adaptive_quantum_error_mitigation import (
     MitigationStrategy,
     WorkloadCharacteristics
 )
-from .quantum_computing_research import QuantumResult, QuantumExperiment
+
+# Import types to avoid circular dependency
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .quantum_computing_research import QuantumResult, QuantumExperiment
 
 
 class ValidationSeverity(Enum):
@@ -534,7 +538,7 @@ class QuantumMLValidationFramework:
         self.validation_history = []
     
     def validate_quantum_ml_experiment(self, 
-                                     experiment_results: List[QuantumResult],
+                                     experiment_results: List['QuantumResult'],
                                      classical_baselines: List[Dict[str, float]],
                                      ml_performance_data: Dict[str, List[float]],
                                      hypothesis: str = "",
