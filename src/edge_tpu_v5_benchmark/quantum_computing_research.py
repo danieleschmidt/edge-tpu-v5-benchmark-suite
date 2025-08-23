@@ -21,12 +21,20 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 from .security import SecurityContext
-from .adaptive_quantum_error_mitigation import (
-    AdaptiveErrorMitigationFramework,
-    MLWorkloadProfiler,
-    ErrorMitigationType,
-    MLWorkloadType
-)
+
+# Import adaptive error mitigation classes dynamically to avoid circular import
+def _get_adaptive_framework():
+    """Lazy import of adaptive error mitigation framework."""
+    try:
+        from .adaptive_quantum_error_mitigation import (
+            AdaptiveErrorMitigationFramework,
+            MLWorkloadProfiler,
+            ErrorMitigationType,
+            MLWorkloadType
+        )
+        return AdaptiveErrorMitigationFramework, MLWorkloadProfiler, ErrorMitigationType, MLWorkloadType
+    except ImportError:
+        return None, None, None, None
 from .quantum_ml_validation_framework import (
     QuantumMLValidationFramework,
     ValidationReport,
@@ -416,9 +424,15 @@ class QuantumResearchFramework:
         # Enhanced with adaptive error mitigation
         self.enable_error_mitigation = enable_error_mitigation
         if enable_error_mitigation:
-            self.error_mitigation_framework = AdaptiveErrorMitigationFramework()
-            self.workload_profiler = MLWorkloadProfiler()
-            self.logger.info("Adaptive error mitigation framework initialized")
+            AdaptiveFramework, MLProfiler, _, _ = _get_adaptive_framework()
+            if AdaptiveFramework and MLProfiler:
+                self.error_mitigation_framework = AdaptiveFramework()
+                self.workload_profiler = MLProfiler()
+                self.logger.info("Adaptive error mitigation framework initialized")
+            else:
+                self.error_mitigation_framework = None
+                self.workload_profiler = None
+                self.logger.warning("Adaptive error mitigation not available")
         else:
             self.error_mitigation_framework = None
             self.workload_profiler = None
