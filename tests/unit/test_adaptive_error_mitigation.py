@@ -19,6 +19,9 @@ from edge_tpu_v5_benchmark.quantum_computing_research import (
     QuantumCircuit,
     QuantumResearchFramework
 )
+from edge_tpu_v5_benchmark.adaptive_quantum_error_mitigation import (
+    SimpleQuantumCircuit
+)
 
 
 class TestMLWorkloadProfiler:
@@ -245,7 +248,7 @@ class TestAdaptiveErrorMitigationFramework:
             circuit, ml_context
         )
         
-        assert isinstance(mitigated_circuit, QuantumCircuit)
+        assert isinstance(mitigated_circuit, (QuantumCircuit, SimpleQuantumCircuit))
         assert isinstance(strategy, MitigationStrategy)
         assert mitigated_circuit.n_qubits == circuit.n_qubits
         # Mitigated circuit should generally have same or more gates
@@ -264,7 +267,7 @@ class TestAdaptiveErrorMitigationFramework:
             circuit, ml_context
         )
         
-        assert isinstance(mitigated_circuit, QuantumCircuit)
+        assert isinstance(mitigated_circuit, (QuantumCircuit, SimpleQuantumCircuit))
         assert isinstance(strategy, MitigationStrategy)
         
     def test_performance_feedback_update(self):

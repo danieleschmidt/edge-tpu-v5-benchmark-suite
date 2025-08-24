@@ -2,152 +2,152 @@
   "multi_tpu_parallel": {
     "multi_tpu_results": {
       "data_parallel_quantum_annealing": {
-        "execution_time": 0.12295866012573242,
+        "execution_time": 0.1174154281616211,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 6.99264915013553,
-        "compute_efficiency": 32.53125884675196
+        "avg_throughput": 7.439661338565007,
+        "compute_efficiency": 34.06707331930896
       },
       "data_parallel_ml_predictive": {
-        "execution_time": 0.10247683525085449,
+        "execution_time": 0.10180878639221191,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 6.476352610559043,
-        "compute_efficiency": 39.03321165420793
+        "avg_throughput": 6.550336421395206,
+        "compute_efficiency": 39.28933976867432
       },
       "data_parallel_adaptive_hybrid": {
-        "execution_time": 0.10256075859069824,
+        "execution_time": 0.10161805152893066,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 6.476352610559043,
-        "compute_efficiency": 39.0012715873455
+        "avg_throughput": 6.550336421395206,
+        "compute_efficiency": 39.36308500130215
       },
       "model_parallel_quantum_annealing": {
-        "execution_time": 0.12014245986938477,
+        "execution_time": 0.11530733108520508,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 9.323532200180706,
-        "compute_efficiency": 33.29380807042472
+        "avg_throughput": 9.919548451420008,
+        "compute_efficiency": 34.68990186794146
       },
       "model_parallel_ml_predictive": {
-        "execution_time": 0.10245180130004883,
+        "execution_time": 0.10165643692016602,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 10.362164176894469,
-        "compute_efficiency": 39.04274936353016
+        "avg_throughput": 10.48053827423233,
+        "compute_efficiency": 39.34822153112965
       },
       "model_parallel_adaptive_hybrid": {
-        "execution_time": 0.10267901420593262,
+        "execution_time": 0.10168099403381348,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 10.362164176894469,
-        "compute_efficiency": 38.9563537489522
+        "avg_throughput": 10.48053827423233,
+        "compute_efficiency": 39.33871848921758
       },
       "quantum_distributed_quantum_annealing": {
-        "execution_time": 0.13440680503845215,
+        "execution_time": 0.11608433723449707,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 11.794121288317042,
-        "compute_efficiency": 29.760397911814426
+        "avg_throughput": 12.860841388176752,
+        "compute_efficiency": 34.45770631329676
       },
       "quantum_distributed_ml_predictive": {
-        "execution_time": 0.1170656681060791,
+        "execution_time": 0.10149478912353516,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 12.952705221118086,
-        "compute_efficiency": 34.16885637534139
+        "avg_throughput": 13.100672842790413,
+        "compute_efficiency": 39.410890298332156
       },
       "quantum_distributed_adaptive_hybrid": {
-        "execution_time": 0.10272932052612305,
+        "execution_time": 0.10173153877258301,
         "successful_tasks": 4,
         "total_tasks": 4,
         "success_rate": 1.0,
-        "avg_throughput": 12.952705221118086,
-        "compute_efficiency": 38.93727690900905
+        "avg_throughput": 13.100672842790413,
+        "compute_efficiency": 39.31917326977476
       }
     },
     "performance_metrics": {
       "total_devices": 4,
       "active_devices": 4,
-      "total_compute_capacity": 31.07844066726902,
+      "total_compute_capacity": 33.06516150473336,
       "average_device_load": 6.938893903907228e-18,
-      "average_temperature": 39.52622236572701,
+      "average_temperature": 46.068576596199165,
       "total_tasks_completed": 36,
-      "average_execution_time": 0.10117638962609427,
-      "parallel_efficiency": 31.07844066726902,
+      "average_execution_time": 0.10032262759549276,
+      "parallel_efficiency": 33.06516150473336,
       "devices": [
         {
           "device_id": "tpu_0",
           "device_path": "/dev/apex_0",
-          "compute_capability": 7.221678954671638,
-          "memory_gb": 35.58613308547314,
+          "compute_capability": 8.41400662237539,
+          "memory_gb": 28.225789463045768,
           "power_efficiency": 50.0,
           "current_load": 0.0,
-          "temperature_celsius": 40.68632413274727,
-          "total_tasks_completed": 2,
-          "avg_execution_time": 0.10088121891021729,
+          "temperature_celsius": 48.04399967598877,
+          "total_tasks_completed": 4,
+          "avg_execution_time": 0.10033619403839111,
           "error_rate": 0.0,
-          "last_heartbeat": 1755955454.1569078,
+          "last_heartbeat": 1756044274.1991007,
           "status": "active"
         },
         {
           "device_id": "tpu_1",
           "device_path": "/dev/apex_1",
-          "compute_capability": 7.090358237010667,
-          "memory_gb": 32.65841148071774,
+          "compute_capability": 7.786105213790276,
+          "memory_gb": 34.71046681034933,
           "power_efficiency": 50.0,
           "current_load": 0.0,
-          "temperature_celsius": 46.958010860849036,
-          "total_tasks_completed": 4,
-          "avg_execution_time": 0.10056453943252563,
+          "temperature_celsius": 46.28799386260502,
+          "total_tasks_completed": 2,
+          "avg_execution_time": 0.10025155544281006,
           "error_rate": 0.0,
-          "last_heartbeat": 1755955454.4973235,
+          "last_heartbeat": 1756044273.8789847,
           "status": "active"
         },
         {
           "device_id": "tpu_2",
           "device_path": "/dev/apex_2",
-          "compute_capability": 8.131266661507992,
-          "memory_gb": 30.288833588962724,
+          "compute_capability": 8.733781895193609,
+          "memory_gb": 28.014807329717964,
           "power_efficiency": 50.0,
-          "current_load": 0.0,
-          "temperature_celsius": 38.13140854528943,
-          "total_tasks_completed": 2,
-          "avg_execution_time": 0.10064160823822021,
+          "current_load": 2.7755575615628914e-17,
+          "temperature_celsius": 42.75461209532088,
+          "total_tasks_completed": 28,
+          "avg_execution_time": 0.10043248959950038,
           "error_rate": 0.0,
-          "last_heartbeat": 1755955454.1559815,
+          "last_heartbeat": 1756044274.4026418,
           "status": "active"
         },
         {
           "device_id": "tpu_3",
           "device_path": "/dev/apex_3",
-          "compute_capability": 8.635136814078724,
-          "memory_gb": 34.294553287617084,
+          "compute_capability": 8.131267773374086,
+          "memory_gb": 34.6142569017758,
           "power_efficiency": 50.0,
-          "current_load": 2.7755575615628914e-17,
-          "temperature_celsius": 32.32914592402229,
-          "total_tasks_completed": 28,
-          "avg_execution_time": 0.10261819192341395,
+          "current_load": 0.0,
+          "temperature_celsius": 47.18770075088199,
+          "total_tasks_completed": 2,
+          "avg_execution_time": 0.10027027130126953,
           "error_rate": 0.0,
-          "last_heartbeat": 1755955454.717489,
+          "last_heartbeat": 1756044273.8788104,
           "status": "active"
         }
       ]
     },
-    "best_configuration": "model_parallel_ml_predictive",
-    "parallel_efficiency": 31.07844066726902
+    "best_configuration": "quantum_distributed_ml_predictive",
+    "parallel_efficiency": 33.06516150473336
   },
   "advanced_telemetry": {
     "dashboard_data": {
-      "timestamp": 1755955455.9655318,
+      "timestamp": 1756044275.5685105,
       "time_range_hours": 1,
       "metrics": {
         "throughput": {
@@ -187,9 +187,9 @@
         },
         "memory_usage": {
           "current": 60,
-          "min": 18.1,
+          "min": 16.7,
           "max": 82,
-          "avg": 58.736363636363635,
+          "avg": 58.60909090909091,
           "trend": "increasing",
           "data_points": 11
         },
@@ -202,10 +202,10 @@
           "data_points": 1
         },
         "memory_available_gb": {
-          "current": 3.1514015197753906,
-          "min": 3.1514015197753906,
-          "max": 3.1514015197753906,
-          "avg": 3.1514015197753906,
+          "current": 3.207447052001953,
+          "min": 3.207447052001953,
+          "max": 3.207447052001953,
+          "avg": 3.207447052001953,
           "trend": "stable",
           "data_points": 1
         },
@@ -218,10 +218,10 @@
           "data_points": 1
         },
         "process_memory_mb": {
-          "current": 165.234375,
-          "min": 165.234375,
-          "max": 165.234375,
-          "avg": 165.234375,
+          "current": 172.23046875,
+          "min": 172.23046875,
+          "max": 172.23046875,
+          "avg": 172.23046875,
           "trend": "stable",
           "data_points": 1
         }
@@ -239,7 +239,7 @@
             "primary": 0.88,
             "coherence_time": 55
           },
-          "timestamp": 1755955455.863421,
+          "timestamp": 1756044275.467323,
           "labels": {
             "quantum_device": "qpu_1"
           },
@@ -249,179 +249,179 @@
       "performance_trends": {
         "throughput": [
           {
-            "timestamp": 1755955454.9573476,
+            "timestamp": 1756044274.5635087,
             "value": 100
           },
           {
-            "timestamp": 1755955455.058114,
+            "timestamp": 1756044274.6638224,
             "value": 120
           },
           {
-            "timestamp": 1755955455.1587,
+            "timestamp": 1756044274.764169,
             "value": 95
           },
           {
-            "timestamp": 1755955455.2592502,
+            "timestamp": 1756044274.8645878,
             "value": 130
           },
           {
-            "timestamp": 1755955455.359865,
+            "timestamp": 1756044274.9649222,
             "value": 85
           },
           {
-            "timestamp": 1755955455.4610014,
+            "timestamp": 1756044275.0656,
             "value": 140
           },
           {
-            "timestamp": 1755955455.5615273,
+            "timestamp": 1756044275.1659796,
             "value": 110
           },
           {
-            "timestamp": 1755955455.6620817,
+            "timestamp": 1756044275.2663605,
             "value": 125
           },
           {
-            "timestamp": 1755955455.762535,
+            "timestamp": 1756044275.3668063,
             "value": 105
           },
           {
-            "timestamp": 1755955455.8632815,
+            "timestamp": 1756044275.4672258,
             "value": 135
           }
         ],
         "latency": [
           {
-            "timestamp": 1755955454.9573944,
+            "timestamp": 1756044274.5635371,
             "value": 10
           },
           {
-            "timestamp": 1755955455.0581737,
+            "timestamp": 1756044274.6638587,
             "value": 12
           },
           {
-            "timestamp": 1755955455.158767,
+            "timestamp": 1756044274.7642074,
             "value": 9
           },
           {
-            "timestamp": 1755955455.2593274,
+            "timestamp": 1756044274.8646276,
             "value": 15
           },
           {
-            "timestamp": 1755955455.3599348,
+            "timestamp": 1756044274.9649634,
             "value": 8
           },
           {
-            "timestamp": 1755955455.4610648,
+            "timestamp": 1756044275.0656414,
             "value": 16
           },
           {
-            "timestamp": 1755955455.5615923,
+            "timestamp": 1756044275.1660218,
             "value": 11
           },
           {
-            "timestamp": 1755955455.6621404,
+            "timestamp": 1756044275.2664266,
             "value": 13
           },
           {
-            "timestamp": 1755955455.7626028,
+            "timestamp": 1756044275.3668454,
             "value": 10
           },
           {
-            "timestamp": 1755955455.8633595,
+            "timestamp": 1756044275.4672687,
             "value": 14
           }
         ],
         "error_rate": [
           {
-            "timestamp": 1755955454.9574115,
+            "timestamp": 1756044274.5635507,
             "value": 0.01
           },
           {
-            "timestamp": 1755955455.0581863,
+            "timestamp": 1756044274.6638675,
             "value": 0.02
           },
           {
-            "timestamp": 1755955455.1587794,
+            "timestamp": 1756044274.764216,
             "value": 0.015
           },
           {
-            "timestamp": 1755955455.259341,
+            "timestamp": 1756044274.864639,
             "value": 0.05
           },
           {
-            "timestamp": 1755955455.3599505,
+            "timestamp": 1756044274.9649723,
             "value": 0.08
           },
           {
-            "timestamp": 1755955455.4610806,
+            "timestamp": 1756044275.0656514,
             "value": 0.03
           },
           {
-            "timestamp": 1755955455.561607,
+            "timestamp": 1756044275.166032,
             "value": 0.02
           },
           {
-            "timestamp": 1755955455.662156,
+            "timestamp": 1756044275.2664375,
             "value": 0.01
           },
           {
-            "timestamp": 1755955455.76262,
+            "timestamp": 1756044275.3669338,
             "value": 0.02
           },
           {
-            "timestamp": 1755955455.8633769,
+            "timestamp": 1756044275.4673016,
             "value": 0.015
           }
         ],
         "cpu_usage": [
           {
-            "timestamp": 1755955454.958085,
+            "timestamp": 1756044274.5641186,
             "value": 0.0
           }
         ],
         "memory_usage": [
           {
-            "timestamp": 1755955454.9574459,
+            "timestamp": 1756044274.5635736,
             "value": 45
           },
           {
-            "timestamp": 1755955454.958116,
-            "value": 18.1
+            "timestamp": 1756044274.564138,
+            "value": 16.7
           },
           {
-            "timestamp": 1755955455.0582292,
+            "timestamp": 1756044274.6638916,
             "value": 52
           },
           {
-            "timestamp": 1755955455.158824,
+            "timestamp": 1756044274.7642388,
             "value": 48
           },
           {
-            "timestamp": 1755955455.2593873,
+            "timestamp": 1756044274.864668,
             "value": 65
           },
           {
-            "timestamp": 1755955455.3605871,
+            "timestamp": 1756044274.9652996,
             "value": 78
           },
           {
-            "timestamp": 1755955455.4611604,
+            "timestamp": 1756044275.0656896,
             "value": 82
           },
           {
-            "timestamp": 1755955455.56172,
+            "timestamp": 1756044275.1660588,
             "value": 75
           },
           {
-            "timestamp": 1755955455.6622028,
+            "timestamp": 1756044275.266465,
             "value": 68
           },
           {
-            "timestamp": 1755955455.76277,
+            "timestamp": 1756044275.3669615,
             "value": 55
           },
           {
-            "timestamp": 1755955455.8634312,
+            "timestamp": 1756044275.467329,
             "value": 60
           }
         ]
@@ -431,17 +431,17 @@
     "system_health_score": 100.0,
     "metrics_count": 9,
     "trace_analysis": {
-      "trace_id": "trace_1755955455965124_1595",
-      "duration": 0.0001914501190185547,
+      "trace_id": "trace_1756044275568236_7565",
+      "duration": 0.0001704692840576172,
       "span_count": 4,
       "spans": [
         {
-          "span_id": "span_1755955455965314_2154",
-          "trace_id": "trace_1755955455965124_1595",
+          "span_id": "span_1756044275568327_2262",
+          "trace_id": "trace_1756044275568236_7565",
           "operation_name": "benchmark_execution",
-          "start_time": 1755955455.9653316,
-          "end_time": 1755955455.965523,
-          "duration": 0.0001914501190185547,
+          "start_time": 1756044275.5683346,
+          "end_time": 1756044275.568505,
+          "duration": 0.0001704692840576172,
           "parent_span_id": null,
           "tags": {
             "operation": "benchmark"
@@ -450,20 +450,20 @@
           "quantum_context": {}
         },
         {
-          "span_id": "span_1755955455965384_2074",
-          "trace_id": "trace_1755955455965124_1595",
+          "span_id": "span_1756044275568364_3383",
+          "trace_id": "trace_1756044275568236_7565",
           "operation_name": "model_inference_0",
-          "start_time": 1755955455.9653947,
-          "end_time": 1755955455.9654233,
-          "duration": 2.86102294921875e-05,
-          "parent_span_id": "span_1755955455965314_2154",
+          "start_time": 1756044275.5683706,
+          "end_time": 1756044275.568436,
+          "duration": 6.532669067382812e-05,
+          "parent_span_id": "span_1756044275568327_2262",
           "tags": {
             "model": "model_0",
             "device": "tpu_0"
           },
           "logs": [
             {
-              "timestamp": 1755955455.9654105,
+              "timestamp": 1756044275.568429,
               "level": "INFO",
               "message": "Processing model 0"
             }
@@ -474,20 +474,20 @@
           }
         },
         {
-          "span_id": "span_1755955455965435_5405",
-          "trace_id": "trace_1755955455965124_1595",
+          "span_id": "span_1756044275568442_6884",
+          "trace_id": "trace_1756044275568236_7565",
           "operation_name": "model_inference_1",
-          "start_time": 1755955455.9654465,
-          "end_time": 1755955455.9654574,
-          "duration": 1.0967254638671875e-05,
-          "parent_span_id": "span_1755955455965314_2154",
+          "start_time": 1756044275.5684571,
+          "end_time": 1756044275.5684652,
+          "duration": 8.106231689453125e-06,
+          "parent_span_id": "span_1756044275568327_2262",
           "tags": {
             "model": "model_1",
             "device": "tpu_1"
           },
           "logs": [
             {
-              "timestamp": 1755955455.9654531,
+              "timestamp": 1756044275.5684626,
               "level": "INFO",
               "message": "Processing model 1"
             }
@@ -498,20 +498,20 @@
           }
         },
         {
-          "span_id": "span_1755955455965461_9964",
-          "trace_id": "trace_1755955455965124_1595",
+          "span_id": "span_1756044275568467_6281",
+          "trace_id": "trace_1756044275568236_7565",
           "operation_name": "model_inference_2",
-          "start_time": 1755955455.9654703,
-          "end_time": 1755955455.9655135,
-          "duration": 4.315376281738281e-05,
-          "parent_span_id": "span_1755955455965314_2154",
+          "start_time": 1756044275.5684738,
+          "end_time": 1756044275.568478,
+          "duration": 4.291534423828125e-06,
+          "parent_span_id": "span_1756044275568327_2262",
           "tags": {
             "model": "model_2",
             "device": "tpu_2"
           },
           "logs": [
             {
-              "timestamp": 1755955455.9655104,
+              "timestamp": 1756044275.5684767,
               "level": "INFO",
               "message": "Processing model 2"
             }
@@ -524,7 +524,7 @@
       ]
     },
     "anomaly_detection_active": false,
-    "metrics_export_size": 1206
+    "metrics_export_size": 1207
   },
   "ml_prediction": {
     "initial_predictions": 9,
@@ -564,17 +564,17 @@
       },
       "quantum_annealing": {
         "assigned_tasks": 12,
-        "load_balance_score": 0.9416788156480196,
-        "thermal_awareness_score": 0.48750000000000004,
+        "load_balance_score": 1.0,
+        "thermal_awareness_score": 0.4875,
         "task_distribution": {
-          "tpu_2": 4,
           "tpu_0": 4,
-          "tpu_3": 4
+          "tpu_3": 4,
+          "tpu_2": 4
         },
         "load_distribution": {
-          "tpu_2": 1.75,
-          "tpu_0": 1.875,
-          "tpu_3": 1.625
+          "tpu_0": 1.75,
+          "tpu_3": 1.75,
+          "tpu_2": 1.75
         }
       },
       "ml_predictive": {
