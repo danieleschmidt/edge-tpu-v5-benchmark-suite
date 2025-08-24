@@ -46,6 +46,17 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
+def skip_if_no_network():
+    """Skip test if no network connectivity."""
+    try:
+        import socket
+        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        return False
+    except OSError:
+        pytest.skip("No network connectivity available")
+
+
+@pytest.fixture
 def mock_tpu_device():
     """Mock TPU device for testing."""
     device = Mock()
