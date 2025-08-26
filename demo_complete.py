@@ -273,11 +273,11 @@ def demo_generation_3():
     print_banner("MAKE IT SCALE (Optimized)", 3)
     
     try:
-        from edge_tpu_v5_benchmark.cache import SmartCache, CacheManager
+        from edge_tpu_v5_benchmark.cache import PredictiveSmartCache, CacheManager
         from edge_tpu_v5_benchmark.auto_scaling import AdaptiveResourceManager, ScalingRule, ResourceType
         
         print("🧠 Intelligent Caching System")
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         
         # Test caching performance
         start_time = time.time()

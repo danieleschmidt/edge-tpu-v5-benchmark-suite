@@ -1,5 +1,5 @@
 {
-  "test_start_time": 1756044420.3316662,
+  "test_start_time": 1756240326.165918,
   "generation_1_simple": {
     "basic_initialization": true,
     "model_loading": true,
@@ -15,7 +15,7 @@
     "advanced_telemetry": true,
     "performance_monitoring": true,
     "device_count": 2,
-    "compute_capacity": 15.069957117396012,
+    "compute_capacity": 14.197082950305717,
     "status": "COMPLETE"
   },
   "quantum_research": {
@@ -30,5 +30,5 @@
     "status": "FAILED",
     "error": "'str' object has no attribute 'value'"
   },
-  "test_duration": 1.825881004333496
+  "test_duration": 1.7298648357391357
 }
