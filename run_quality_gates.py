@@ -79,6 +79,9 @@ def check_imports():
         "edge_tpu_v5_benchmark.health",
     ]
     
+    import sys
+    sys.path.insert(0, 'src')
+    
     for module in critical_modules:
         try:
             __import__(module)
@@ -103,6 +106,7 @@ def run_unit_tests():
     
     # Try to run a simple test
     try:
+        import importlib.util
         # Import test modules to check they load
         sys.path.insert(0, str(Path("tests").absolute()))
         
@@ -134,7 +138,7 @@ def run_integration_checks():
         
         from edge_tpu_v5_benchmark import TPUv5Benchmark, ModelLoader
         from edge_tpu_v5_benchmark.validation import BenchmarkValidator
-        from edge_tpu_v5_benchmark.cache import SmartCache
+        from edge_tpu_v5_benchmark.cache import PredictiveSmartCache
         
         # Test validation
         validator = BenchmarkValidator()
@@ -150,7 +154,7 @@ def run_integration_checks():
             return False
         
         # Test cache
-        cache = SmartCache()
+        cache = PredictiveSmartCache()
         cache.set("test_key", "test_value")
         if cache.get("test_key") != "test_value":
             logger.error("Cache functionality failed")
