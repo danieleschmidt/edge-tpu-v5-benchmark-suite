@@ -1,288 +1,100 @@
 #!/usr/bin/env python3
-"""Simple demonstration of the TPU v5 benchmark suite functionality."""
+"""
+demo.py — Demonstrate the edge_tpu_v5_bench suite with example models.
 
-import sys
-import time
-from pathlib import Path
+Models included:
+  - MobileNet-like (depthwise separable convolutions)
+  - ResNet-like (standard convolutions + FC head)
+  - Tiny MLP (linear layers only)
+"""
+import json
+from edge_tpu_v5_bench import (
+    ModelBenchmark,
+    InferenceSimulator,
+    PowerEstimator,
+    BenchmarkSuite,
+)
 
-# Add src to path for testing
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+# ---------------------------------------------------------------------------
+# Define models via layer specs
+# ---------------------------------------------------------------------------
 
-def simulate_numpy():
-    """Simple numpy simulation for basic functionality."""
-    class SimpleArray:
-        def __init__(self, data):
-            if isinstance(data, (list, tuple)):
-                self.data = data
-                self.shape = (len(data),)
-            else:
-                self.data = [data]
-                self.shape = (1,)
-        
-        def mean(self):
-            return sum(self.data) / len(self.data)
-        
-        def std(self):
-            mean_val = self.mean()
-            variance = sum((x - mean_val) ** 2 for x in self.data) / len(self.data)
-            return variance ** 0.5
-        
-        def max(self):
-            return max(self.data)
-        
-        def min(self):
-            return min(self.data)
-    
-    def array(data):
-        return SimpleArray(data)
-    
-    def mean(arr):
-        return arr.mean()
-    
-    def std(arr):
-        return arr.std()
-    
-    def max(arr):
-        return arr.max()
-    
-    def min(arr):
-        return arr.min()
-    
-    def percentile(arr, p):
-        sorted_data = sorted(arr.data)
-        k = (len(sorted_data) - 1) * p / 100
-        f = int(k)
-        c = k - f
-        if f == len(sorted_data) - 1:
-            return sorted_data[f]
-        return sorted_data[f] * (1 - c) + sorted_data[f + 1] * c
-    
-    def random():
-        class Random:
-            @staticmethod
-            def randn(*shape):
-                # Simple pseudo-random number generator
-                import time
-                seed = int(time.time() * 1000000) % 1000
-                size = 1
-                for s in shape:
-                    size *= s
-                
-                result = []
-                for i in range(size):
-                    # Linear congruential generator
-                    seed = (seed * 1664525 + 1013904223) % (2**32)
-                    result.append((seed / (2**32)) * 2 - 1)  # Normalize to [-1, 1]
-                
-                return SimpleArray(result)
-            
-            @staticmethod
-            def uniform(low, high, shape):
-                size = 1
-                for s in shape:
-                    size *= s
-                
-                result = []
-                seed = int(time.time() * 1000000) % 1000
-                for i in range(size):
-                    seed = (seed * 1664525 + 1013904223) % (2**32)
-                    val = low + (seed / (2**32)) * (high - low)
-                    result.append(val)
-                
-                return SimpleArray(result)
-            
-            @staticmethod
-            def normal(mean=0, std=1):
-                seed = int(time.time() * 1000000) % 1000
-                seed = (seed * 1664525 + 1013904223) % (2**32)
-                return mean + std * ((seed / (2**32)) * 2 - 1)
-            
-            @staticmethod
-            def randint(low, high):
-                seed = int(time.time() * 1000000) % 1000
-                seed = (seed * 1664525 + 1013904223) % (2**32)
-                return low + int((seed / (2**32)) * (high - low))
-            
-            @staticmethod
-            def random():
-                seed = int(time.time() * 1000000) % 1000
-                seed = (seed * 1664525 + 1013904223) % (2**32)
-                return seed / (2**32)
-        
-        return Random()
-    
-    # Create module-like object
-    class NumpySimulator:
-        def __init__(self):
-            self.array = array
-            self.mean = mean
-            self.std = std
-            self.max = max
-            self.min = min
-            self.percentile = percentile
-            self.random = random()
-            self.float32 = float
-            self.ndarray = SimpleArray
-        
-        def __getattr__(self, name):
-            if name == 'float32':
-                return float
-            if name == 'ndarray':
-                return SimpleArray
-            raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-    
-    return NumpySimulator()
+MOBILENET_LIKE = [
+    # Initial conv
+    {"type": "conv", "in_channels": 3, "out_channels": 32, "kernel_size": 3, "output_size": [112, 112]},
+    # Depthwise separable blocks (simplified)
+    {"type": "depthwise_conv", "channels": 32, "kernel_size": 3, "output_size": [112, 112]},
+    {"type": "conv", "in_channels": 32, "out_channels": 64, "kernel_size": 1, "output_size": [112, 112]},
+    {"type": "depthwise_conv", "channels": 64, "kernel_size": 3, "output_size": [56, 56]},
+    {"type": "conv", "in_channels": 64, "out_channels": 128, "kernel_size": 1, "output_size": [56, 56]},
+    {"type": "depthwise_conv", "channels": 128, "kernel_size": 3, "output_size": [28, 28]},
+    {"type": "conv", "in_channels": 128, "out_channels": 256, "kernel_size": 1, "output_size": [28, 28]},
+    {"type": "depthwise_conv", "channels": 256, "kernel_size": 3, "output_size": [14, 14]},
+    {"type": "conv", "in_channels": 256, "out_channels": 512, "kernel_size": 1, "output_size": [14, 14]},
+    # Classifier head
+    {"type": "linear", "in_features": 512, "out_features": 1000},
+]
 
-# Monkey patch numpy
-sys.modules['numpy'] = simulate_numpy()
+RESNET_LIKE = [
+    # Stem
+    {"type": "conv", "in_channels": 3, "out_channels": 64, "kernel_size": 7, "output_size": [56, 56]},
+    {"type": "batchnorm", "num_features": 64},
+    # Stage 1
+    {"type": "conv", "in_channels": 64, "out_channels": 64, "kernel_size": 3, "output_size": [56, 56]},
+    {"type": "conv", "in_channels": 64, "out_channels": 64, "kernel_size": 3, "output_size": [56, 56]},
+    # Stage 2
+    {"type": "conv", "in_channels": 64, "out_channels": 128, "kernel_size": 3, "output_size": [28, 28]},
+    {"type": "conv", "in_channels": 128, "out_channels": 128, "kernel_size": 3, "output_size": [28, 28]},
+    # Stage 3
+    {"type": "conv", "in_channels": 128, "out_channels": 256, "kernel_size": 3, "output_size": [14, 14]},
+    {"type": "conv", "in_channels": 256, "out_channels": 256, "kernel_size": 3, "output_size": [14, 14]},
+    # Classifier
+    {"type": "linear", "in_features": 256, "out_features": 1000},
+]
 
-def demo_benchmark():
-    """Demonstrate benchmark functionality."""
-    print("🚀 TPU v5 Benchmark Suite Demo")
-    print("=" * 50)
-    
-    try:
-        from edge_tpu_v5_benchmark import TPUv5Benchmark, ModelLoader, ModelRegistry
-        
-        print("✓ Successfully imported benchmark modules")
-        
-        # Initialize components
-        benchmark = TPUv5Benchmark()
-        registry = ModelRegistry()
-        
-        print(f"✓ Initialized benchmark (simulation mode: {benchmark._simulation_mode})")
-        
-        # Show available models
-        models = registry.list_models()
-        print(f"✓ Found {len(models)} available models:")
-        for model_id, info in models.items():
-            print(f"  - {info['name']} ({info['category']})")
-        
-        # Load a model
-        print("\n📊 Loading sample model...")
-        model = ModelLoader.from_onnx("sample_model.onnx")
-        print("✓ Model loaded successfully")
-        
-        # Run a quick benchmark
-        print("\n🏃 Running quick benchmark...")
-        results = benchmark.run(
-            model=model,
-            input_shape=(1, 3, 224, 224),
-            iterations=10,
-            warmup=2
-        )
-        
-        print("\n📈 Benchmark Results:")
-        print(f"  Throughput: {results.throughput:.1f} inferences/sec")
-        print(f"  Latency (mean): {results.latency_mean:.2f} ms")
-        print(f"  Latency (p99): {results.latency_p99:.2f} ms")
-        print(f"  Power (avg): {results.avg_power:.2f} W")
-        print(f"  Efficiency: {results.inferences_per_watt:.0f} inferences/W")
-        print(f"  Success rate: {results.success_rate * 100:.1f}%")
-        
-        print("\n✅ Demo completed successfully!")
-        
-    except Exception as e:
-        print(f"❌ Error during demo: {e}")
-        import traceback
-        traceback.print_exc()
+TINY_MLP = [
+    {"type": "linear", "in_features": 784, "out_features": 256},
+    {"type": "linear", "in_features": 256, "out_features": 128},
+    {"type": "linear", "in_features": 128, "out_features": 64},
+    {"type": "linear", "in_features": 64, "out_features": 10},
+]
 
-def demo_compiler():
-    """Demonstrate compiler analysis functionality."""
-    print("\n🔍 Compiler Analysis Demo")
-    print("=" * 30)
-    
-    try:
-        from edge_tpu_v5_benchmark.compiler import CompilerAnalyzer
-        
-        analyzer = CompilerAnalyzer()
-        analysis = analyzer.analyze_model("sample_model.onnx")
-        
-        print("📊 Compiler Analysis Results:")
-        print(f"  Supported ops: {analysis.supported_ops_percent:.1%}")
-        print(f"  Fusions found: {analysis.num_fusions}")
-        print(f"  Memory transfers: {analysis.memory_transfers}")
-        print(f"  TPU utilization: {analysis.tpu_utilization:.1%}")
-        print(f"  Compilation time: {analysis.compilation_time:.2f}s")
-        
-        print("\n🔧 Applied Optimizations:")
-        for opt in analysis.optimizations_applied:
-            print(f"  - {opt}")
-        
-        print("\n⚠️  Bottlenecks:")
-        for bottleneck in analysis.bottlenecks:
-            print(f"  - {bottleneck}")
-        
-        print("\n💡 Recommendations:")
-        for rec in analysis.recommendations:
-            print(f"  - {rec}")
-        
-        print("\n✅ Compiler analysis completed!")
-        
-    except Exception as e:
-        print(f"❌ Error during compiler demo: {e}")
-        import traceback
-        traceback.print_exc()
 
-def demo_converter():
-    """Demonstrate model conversion functionality."""
-    print("\n🔄 Model Conversion Demo")
-    print("=" * 30)
-    
-    try:
-        from edge_tpu_v5_benchmark.converter import ONNXToTPUv5
-        
-        converter = ONNXToTPUv5()
-        
-        # Create a dummy ONNX file for demo
-        Path("sample_model.onnx").write_bytes(b"dummy_onnx_model_data")
-        
-        result = converter.convert(
-            onnx_path="sample_model.onnx",
-            optimization_profile="balanced"
-        )
-        
-        print("📊 Conversion Results:")
-        print(f"  Success: {result.success}")
-        print(f"  Output: {result.output_path}")
-        print(f"  Size reduction: {result.original_size_mb:.1f}MB -> {result.converted_size_mb:.1f}MB")
-        print(f"  Conversion time: {result.conversion_time:.2f}s")
-        
-        print("\n🔧 Applied Optimizations:")
-        for opt in result.optimizations_applied:
-            print(f"  - {opt}")
-        
-        if result.warnings:
-            print("\n⚠️  Warnings:")
-            for warning in result.warnings:
-                print(f"  - {warning}")
-        
-        print("\n✅ Model conversion completed!")
-        
-        # Cleanup
-        Path("sample_model.onnx").unlink(missing_ok=True)
-        Path(result.output_path).unlink(missing_ok=True)
-        
-    except Exception as e:
-        print(f"❌ Error during conversion demo: {e}")
-        import traceback
-        traceback.print_exc()
+def main():
+    # Setup
+    simulator = InferenceSimulator(tops=4.0, memory_bandwidth_gbps=8.0)
+    estimator = PowerEstimator(power_budget_w=2.0, efficiency_tops_per_w=50.0)
+    suite = BenchmarkSuite()
+
+    suite.add_model(ModelBenchmark("MobileNet-like", MOBILENET_LIKE))
+    suite.add_model(ModelBenchmark("ResNet-like", RESNET_LIKE))
+    suite.add_model(ModelBenchmark("Tiny-MLP", TINY_MLP))
+
+    print("=" * 70)
+    print("  Edge TPU v5 Benchmark Suite — Demo")
+    print("  Target efficiency: 50 TOPS/W | Power budget: 2.0 W")
+    print("=" * 70)
+
+    for quantization in ("INT8", "INT4"):
+        print(f"\n[Quantization: {quantization}]")
+        results = suite.run_all(simulator, estimator, batch_size=1, quantization=quantization)
+        for r in results:
+            budget_str = "✓" if r["within_budget"] else "✗"
+            print(
+                f"  {r['model_name']:<20} "
+                f"params={r['param_count']:>10,}  "
+                f"latency={r['latency_ms']:>10.4f}ms  "
+                f"qps={r['throughput_qps']:>12.2f}  "
+                f"mem={r['memory_mb_int8']:>7.3f}MB  "
+                f"power={r['power_w']:.4f}W {budget_str}"
+            )
+
+    # Save final INT8 results
+    results = suite.run_all(simulator, estimator, batch_size=1, quantization="INT8")
+    suite.save_json(results, "/tmp/demo_results.json")
+    print(f"\nResults saved to /tmp/demo_results.json")
+    print("Done.")
+
 
 if __name__ == "__main__":
-    print("🧠 TPU v5 Benchmark Suite - Generation 1 Demo")
-    print("=" * 60)
-    
-    demo_benchmark()
-    demo_compiler()
-    demo_converter()
-    
-    print("\n" + "=" * 60)
-    print("🎉 All demos completed! Generation 1 implementation is working.")
-    print("📋 Core functionality verified:")
-    print("  ✓ Benchmark execution with simulation")
-    print("  ✓ Model registry and loading")
-    print("  ✓ Compiler analysis and optimization")  
-    print("  ✓ Model conversion pipeline")
-    print("  ✓ Performance metrics calculation")
-    print("  ✓ Power consumption simulation")
-    print("\n🚀 Ready for Generation 2: MAKE IT ROBUST!")
+    main()

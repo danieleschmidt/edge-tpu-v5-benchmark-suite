@@ -1,1 +1,0 @@
-"""Integration tests for Edge TPU v5 Benchmark Suite."""
